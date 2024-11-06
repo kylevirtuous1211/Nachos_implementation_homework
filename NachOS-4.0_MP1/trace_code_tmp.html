@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>trace_code.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<p>Team Contributions:</p>
+<table>
+<thead>
+<tr>
+<th>work</th>
+<th>陳安楷</th>
+<th>林夢遠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trace SC_Halt</td>
+<td>*****</td>
+<td></td>
+</tr>
+<tr>
+<td>Trace SC_Create</td>
+<td>*****</td>
+<td></td>
+</tr>
+<tr>
+<td>Trace SC_PrintInt</td>
+<td></td>
+<td>*****</td>
+</tr>
+<tr>
+<td>Trace Makefile</td>
+<td>*****</td>
+<td></td>
+</tr>
+<tr>
+<td>Write exception.cc</td>
+<td></td>
+<td>*****</td>
+</tr>
+<tr>
+<td>Write ksyscall.h</td>
+<td></td>
+<td>*****</td>
+</tr>
+<tr>
+<td>Write filesys.h</td>
+<td>*****</td>
+<td></td>
+</tr>
+<tr>
+<td>Write syscall.h</td>
+<td>*****</td>
+<td></td>
+</tr>
+<tr>
+<td>Debug &amp; testing</td>
+<td></td>
+<td>*****</td>
+</tr>
+</tbody>
+</table>
+<p>我們 code tracing 的報告各自打，然後第二部分寫system call報告由陳安楷撰寫</p>
+<h2 id="tracing-schalt-system-call">Tracing SC_Halt system call</h2>
+<h4 id="how-it-passes-to-kernel">how it passes to kernel?</h4>
+<p><code>Machine-&gt;run</code> 讓 process 開始跑之後，不斷的讓 CPU 去用 <code>OneInstruction</code> 去 fetch instructions，在執行 instruction 的時候如果遇到 exception 那就要交給我們的 OS kernel 去處理，像是 Overflow, AddressError, I/O, 檔案讀寫。然後這邊在呼叫 <code>SysHalt()</code> 釋放 kernel 物件的記憶體</p>
+<h3 id="machinemipssimcc-machinerun">machine/mipssim.cc Machine::run():</h3>
+<ul>
+<li>goal: swtich to user mode and fetch instructions</li>
+</ul>
+<p>In line 54, it allocates memory for Instruction object.</p>
+<p>line 56, it says debug mode for the machine is enabled, it would output system's thread's info and system's total ticks count</p>
+<p>Line 60, it <em><strong>sets system's CPU to user mode</strong></em> so it could execute user-level instructions</p>
+<p>Line 61, it starts <strong>infinite loop</strong> for executing instruction. Inside the loop, it executes the instruction inside the <code>OneInstruction()</code> function. Then after executing, the system <strong>advances by one tick</strong></p>
+<p>line 73, it debugs using single step mode. Therefore, if the <code>singleStep</code> flag is enabled and tick count is larger than runUntilTime, which is probably for controlled execution, the <code>Debugger</code> will be called.</p>
+<h3 id="machinemipssimcc-machineoneinstructioninstruction-instr">machine/mipssim.cc Machine::OneInstruction(Instruction *instr)</h3>
+<ul>
+<li>goal: execute the instruction by fetching instruction using <code>ReadMem</code></li>
+</ul>
+<p>line 133~136: fetch instruction, store in <code>instr-&gt;value</code>, then Decode the instruction</p>
+<h4 id="instr-decode">instr-&gt;Decode():</h4>
+<pre class="hljs"><code><div>void Instruction::Decode() {
+    OpInfo *opPtr;
+
+    rs = (value &gt;&gt; 21) &amp; 0x1f;
+    rt = (value &gt;&gt; 16) &amp; 0x1f;
+    rd = (value &gt;&gt; 11) &amp; 0x1f;
+    opPtr = &amp;opTable[(value &gt;&gt; 26) &amp; 0x3f];
+    opCode = opPtr-&gt;opCode;
+    if (opPtr-&gt;format == IFMT) {
+        extra = value &amp; 0xffff;
+        if (extra &amp; 0x8000) {
+            extra |= 0xffff0000;
+        }
+    } else if (opPtr-&gt;format == RFMT) {
+        extra = (value &gt;&gt; 6) &amp; 0x1f;
+    } else {
+        extra = value &amp; 0x3ffffff;
+    }
+    if (opCode == SPECIAL) {
+        opCode = specialTable[value &amp; 0x3f];
+    } else if (opCode == BCOND) {
+        int i = value &amp; 0x1f0000;
+
+        if (i == 0) {
+            opCode = OP_BLTZ;
+        } else if (i == 0x10000) {
+            opCode = OP_BGEZ;
+        } else if (i == 0x100000) {
+            opCode = OP_BLTZAL;
+        } else if (i == 0x110000) {
+            opCode = OP_BGEZAL;
+        } else {
+            opCode = OP_UNIMP;
+        }
+    }
+}
+</div></code></pre>
+<p>138~147: for debug purpose</p>
+<p>150: update program counter, +4 because a word is 4 bytes</p>
+<p>155~696: Use the switch case structure for executing instructions. Because each instruction have a specific opCode.</p>
+<h3 id="machinemachinecc-machineraiseexception">machine/machine.cc Machine::RaiseException</h3>
+<ul>
+<li>
+<p>goal: transfer control to Nachos kernel from user mode</p>
+</li>
+<li>
+<p>args: &quot;which&quot;: the cause of kernel trap, &quot;badVaddr&quot;: virtual address causing the trap</p>
+</li>
+</ul>
+<p>line 98: invoke <code>Debugger</code></p>
+<p>line 99: store the virtual address that cause the trap inside a register</p>
+<p>line 103: After finishing anything in progress, change to kernel mode and handle the exception, then return back to user mode.</p>
+<h3 id="userprogexceptioncc-exceptionhandler">userprog/exception.cc ExceptionHandler()</h3>
+<ul>
+<li>goal: designed to handle exceptions that occur during the execution of a user program in the Nachos kernel. Exceptions allow user programs to request services from the operating system through system calls.</li>
+</ul>
+<p>we can write more code over here to handle more exception cases</p>
+<ul>
+<li>args: <code>which</code> is the cause of kernel trap</li>
+</ul>
+<p>Parameters:</p>
+<ul>
+<li>
+<p><code>val</code>: Used to store values passed in registers or read from memory.</p>
+</li>
+<li>
+<p><code>type</code>: Stores the <strong>system call number</strong>, which is in register 2 (r2) as part of the calling convention.</p>
+</li>
+</ul>
+<p>line 60~65: (SC_Halt) handles the SC_Halt system call, which shuts down the machine. It logs the event, invokes SysHalt() to perform the shutdown</p>
+<p>line 66~78: (SC_PrintInt): Reads an integer value from register 4.Then, calls <code>SysPrintInt(val)</code> to print the integer.Finally, Adjusts the program counters (<code>PrevPCReg</code>, <code>PCReg</code>, <code>and</code> <code>NextPCReg</code>) to point to the next instruction, avoiding an infinite loop by not re-executing the same system call repeatedly.</p>
+<p>line 79~88: (SC_MSG)
+Reads a pointer from register 4.
+Interprets the pointer as the starting address of a message string in the machine’s memory. Prints the message and halts the system using <code>SysHalt()</code> and asserts that the code should not continue.</p>
+<p>line 89~102: (SC_Create):
+Reads a pointer from register 4, which is the filename for a file to be created. Calls <code>SysCreate(filename)</code> to create the file.</p>
+<p>Then writes the return status of the file creation to register 2. Finally, adjusts the program counters to move to the next instruction.</p>
+<p>line 103~123: (SC_Add):
+Reads two integer operands from registers 4 and 5. After calling <code>SysAdd()</code> to compute their sum and stores the result in register 2. Then Adjusts the program counters and prints the result.</p>
+<p>line 128~132: (SC_Exit)
+Reads an exit status from register 4 and prints it. Terminates the current thread by calling <code>kernel-&gt;currentThread-&gt;Finish()</code>.</p>
+<h3 id="userprogksyscallh-syshalt">userprog/ksyscall.h SysHalt</h3>
+<ul>
+<li>goal: signals the OS to stop, shutting down the simulated machine. For example when program finishes execution</li>
+</ul>
+<p>line 17: kernel pointer calls the interrupt member, which calls <code>Halt()</code> member function that shuts down NachOS</p>
+<h3 id="machineinterruptcc-interrupthalt">machine/interrupt.cc Interrupt::Halt()</h3>
+<ul>
+<li>goal: shuts down NachOS cleanly</li>
+</ul>
+<p>line 229: after print out performance statistics, release the memory for kernel object</p>
+<h2 id="tracing-sccreate-system-call">Tracing SC_Create system call</h2>
+<h3 id="%E5%92%8C-kernel-%E4%BA%92%E5%8B%95%E7%9A%84%E6%96%B9%E5%BC%8F">和 Kernel 互動的方式：</h3>
+<p>執行 instruction exception之後，前往 SysCreate()去handle這個exception，sysCreate()就會去呼叫<code>fileSystem</code> 創建檔案並回傳值給<code>exception.cc</code>，在Create()裡面，如果<code>fileDescriptor</code> 是 -1的話那檔案就沒有成功被開啟<code>return FALSE</code>，最後有沒有創建成功會被存到 $v0 裡面，然後處理完這個exception後program counter會向前移。</p>
+<h3 id="userprogexceptioncc-exceptionhandler">userprog/exception.cc ExceptionHandler()</h3>
+<p>Traced before</p>
+<h3 id="userprogksyscallh-syscreate">userprog/ksyscall.h SysCreate()</h3>
+<ul>
+<li>goal: Creates a file in NachOS file system. Return if the kernel has successfully created a file</li>
+</ul>
+<p>See more in <code>Create()</code> to now extra details</p>
+<h3 id="filesysfilesysh-filesystemcreate">filesys/filesys.h FileSystem::Create()</h3>
+<ul>
+<li>goal: create a new file. If fileDescriptor returned -1, it means the file couldn't be created and the function returns false.</li>
+</ul>
+<p>line 57: If the file was opend, close the file using <code>Close</code> after reading and writing are finished</p>
+<h2 id="tracing-scprintint-system-call">Tracing SC_PrintInt system call</h2>
+<h3 id="scprintint-%E5%92%8C-kernel-%E4%BA%92%E5%8B%95%E7%9A%84%E6%96%B9%E5%BC%8F">SC_PrintInt 和 Kernel 互動的方式：</h3>
+<p>一開始從<code> exceptionHandler()</code> 接到 exception 之後，進到SysPrintInt()，經過ksyscall.h進入kernel <code>SynchConsoleOutput::PutInt()</code> 裡面，在PutInt()時將integer轉成char後再PutChar()，同時使用<code>lock</code> 來讓output()可以做好，尤其是multithreaded的環境。
+為了保持interrupt的時序，context switch 沒有問題，用 <code>OneTick</code>來紀錄kernel space的時間，用<code>Schedule()</code>去排程什麼時候進行interrupt，因為Nachos虛擬環境沒有硬體來interrupt，那當造成interrupt的東西ex: I/O 結束後，就會呼叫 <code>callBack()</code>來繼續process執行</p>
+<h3 id="exceptionhandler">ExceptionHandler()</h3>
+<ul>
+<li><strong>Comment:</strong> Reads the number <code>val</code> to be printed from the register.</li>
+<li>Calls <code>SysPrintInt(val)</code> to output the number.</li>
+<li>Advances the PC and returns, ensuring that <code>assert()</code> is not triggered for an unsuccessful return.</li>
+<li><strong>Summary:</strong> In <code>ExceptionHandler()</code>, the part handling <code>SC_PrintInt</code> reads the number to be printed and calls the underlying <code>SysPrintInt</code> function to output the number, then advances the PC.</li>
+</ul>
+<h3 id="ksyscallh-sysprintint">ksyscall.h SysPrintInt()</h3>
+<ul>
+<li>Outputs the current total ticks.</li>
+<li>Calls <code>SynchConsoleOutput::PutInt()</code> from the kernel.</li>
+<li>Outputs the current total ticks again.</li>
+<li><strong>Summary:</strong> <code>SysPrintInt()</code> calls <code>PutInt()</code> and records the time spent (in ticks).</li>
+</ul>
+<h3 id="synchconsoleoutputputint">SynchConsoleOutput::PutInt()</h3>
+<ul>
+<li>Converts the input <code>value</code> into a string <code>str</code>.</li>
+<li>Locks before output to prevent race conditions during multithreading.</li>
+<li>Enters a while loop to output each character of <code>str</code> one by one, calling <code>consoleOutput-&gt;PutChar()</code> each time.</li>
+<li>After <code>PutChar</code>, calls <code>waitFor-&gt;P()</code> to ensure the output sequence is correct.</li>
+<li>Releases the lock after completing the output.</li>
+<li><strong>Summary:</strong> <code>SynchConsoleOutput::PutInt()</code> outputs an integer to the console by converting it to a string and outputting each character one by one, including extensive debug messages to record operation times.</li>
+</ul>
+<h3 id="synchconsoleoutputputchar">SynchConsoleOutput::PutChar()</h3>
+<ul>
+<li>Locks, then calls <code>consoleOutput-&gt;PutChar(ch)</code> to output <code>ch</code>.</li>
+<li>Releases the lock after the output completes.</li>
+<li><strong>Summary:</strong> <code>SynchConsoleOutput::PutChar()</code> outputs a single character.</li>
+</ul>
+<h3 id="consoleoutputputchar">ConsoleOutput::PutChar()</h3>
+<ul>
+<li>Checks if <code>putBusy</code> is true (another <code>put</code> is in progress).</li>
+<li>Writes <code>ch</code> into <code>writeFileNo</code> (the file to which the console outputs).</li>
+<li>Sets <code>putBusy</code> to true to prevent other threads from causing race conditions before the output.</li>
+<li>Delays for a short time (<code>ConsoleTime</code>) before calling <code>interrupt</code> to perform <code>ConsoleWriteInt</code> for output.</li>
+<li><strong>Summary:</strong> <code>consoleOutput-&gt;PutChar()</code> writes the character to <code>writeFileNo</code> for console output and triggers <code>ConsoleWriteInt</code> after a brief delay.</li>
+</ul>
+<h3 id="interruptschedule">Interrupt::Schedule()</h3>
+<ul>
+<li>Calculates the time for the interrupt to trigger and initializes <code>toOccur</code> with <code>toCall</code>, trigger time, and <code>IntType type</code>.</li>
+<li>Excludes cases where <code>fromNow &lt;= 0</code> (cases that are due immediately).</li>
+<li>Adds <code>toOccur</code> to the <code>pending</code> <code>SortedList</code> for future interrupt execution.</li>
+<li><strong>Summary:</strong> <code>Interrupt::Schedule()</code> creates a schedule and adds it to the list for future execution.</li>
+</ul>
+<h3 id="machinerun">Machine::Run()</h3>
+<ul>
+<li>Creates an <code>instr</code> pointer to hold the instruction and switches to User Mode.</li>
+<li>Enters a loop, continuously executing the next instruction (<code>OneInstruction()</code>), recording execution time, and calling <code>OneTick()</code> to simulate time advancement and check for interrupts.</li>
+<li>Calls <code>debugger()</code> if single-step debugging is enabled and the current time reaches the debug interval.</li>
+<li><strong>Summary:</strong> <code>Machine::Run()</code> simulates the system's continuous process of fetching and executing instructions.</li>
+</ul>
+<h3 id="machineonetick">Machine::OneTick()</h3>
+<ul>
+<li>Advances time based on the current mode.</li>
+<li>Disables interrupts and calls <code>CheckIfDue(FALSE)</code> to check and execute pending interrupts. Passing <code>FALSE</code> means it doesn't jump directly to the next interrupt time but gradually advances.</li>
+<li>Re-enables interrupts afterward.</li>
+<li>Performs a context switch if <code>yieldOnReturn</code> is set and restores the mode to the original state (kernel or user mode).</li>
+<li><strong>Summary:</strong> <code>Machine::OneTick()</code> advances time, checks for pending interrupts, gradually progresses without skipping directly to the next interrupt, and performs context switches as needed.</li>
+</ul>
+<h3 id="interruptcheckifdue">Interrupt::CheckIfDue()</h3>
+<ul>
+<li>Asserts that other interrupts are disabled.</li>
+<li>Runs debug checks and returns <code>FALSE</code> if the pending interrupt list is empty.</li>
+<li>Checks the earliest interrupt in the list. If the time hasn't reached, it determines whether to advance the clock. If not, it returns <code>FALSE</code>; if so, it jumps directly to the time.</li>
+<li>Executes <code>DelayedLoad()</code> to update delayed values before entering the kernel trap.</li>
+<li>Enters a handler loop to execute all due interrupts in the pending list, then exits and returns <code>TRUE</code> (as at least one interrupt will execute).</li>
+</ul>
+<h3 id="consoleoutputcallback">ConsoleOutput::CallBack()</h3>
+<ul>
+<li>Debugs, sets <code>putBusy</code> to <code>FALSE</code> (indicating that the current output operation is complete and new outputs can be accepted), and updates the output character count.</li>
+<li>Calls <code>CallBack()</code> for subsequent operations.</li>
+<li><strong>Summary:</strong> <code>ConsoleOutput::CallBack()</code> handles the actions to be performed after output is complete and calls <code>callWhenDone-&gt;CallBack()</code> for further actions.</li>
+</ul>
+<h3 id="synchconsoleoutputcallback">SynchConsoleOutput::CallBack()</h3>
+<ul>
+<li>Outputs debug messages.</li>
+<li>Executes <code>waitFor-&gt;V()</code> to unblock any process waiting on <code>waitFor-&gt;P()</code>.</li>
+<li><strong>Summary:</strong> <code>SynchConsoleOutput::CallBack()</code> handles post-output operations by releasing synchronization locks.</li>
+</ul>
+<h2 id="tracing-makefile-in-codetestmakefile">Tracing Makefile in code/test/MakeFile</h2>
+<ul>
+<li>goal: to understand how testfiles are compiled</li>
+</ul>
+<p>line 115: This variable lists the programs that will be built when you run make. Each program corresponds to a C source file (e.g.add.c for add, halt.c for halt, etc.).</p>
+<pre class="hljs"><code><div>else
+# change this if you create a new test program!
+PROGRAMS = add halt createFile LotOfAdd
+endif
+</div></code></pre>
+<h3 id="how-does-the-makefile-work">how does the makefile work</h3>
+<ul>
+<li>
+<p>goal: for building user level programs that can run on MIPS simulator</p>
+</li>
+<li>
+<p>Procedure:</p>
+<ul>
+<li>compile in .coff, then convert into .noff for nachos MIPS simulator</li>
+<li>uses GCC to compile into object files and linking them into final output. Start.o ensures correct startup routine</li>
+</ul>
+</li>
+<li>
+<p>Variables explanation</p>
+<ul>
+<li>CC, AS, LD: compiler, assembler, and linker commands</li>
+<li>CFLAGS: including include directories and options for compiling</li>
+<li>PROGRAMS: specifies the names of the programs to be built</li>
+</ul>
+</li>
+</ul>
+<h4 id="how-files-are-built">How files are built</h4>
+<p>For example, this is the code block for halt</p>
+<pre class="hljs"><code><div>halt.o: halt.c
+	$(CC) $(CFLAGS) -c halt.c
+halt: halt.o start.o
+	$(LD) $(LDFLAGS) start.o halt.o -o halt.coff
+	$(COFF2NOFF) halt.coff halt
+</div></code></pre>
+<ol>
+<li>halt.o is created by compiling halt.c.</li>
+<li>halt.coff is created by linking halt.o and tart.o.</li>
+<li>halt (the final executable) is created by converting halt.coff to NOFF format.</li>
+</ol>
+<h2 id="part-ii-implementation-for-syscall">Part II: Implementation for Syscall</h2>
+<p>From code tracing we followed how other system code work and modified these files:</p>
+<ul>
+<li>userprog
+<ul>
+<li>exception.cc</li>
+<li>ksyscall.h</li>
+<li>syscall.h</li>
+</ul>
+</li>
+<li>filesys
+<ul>
+<li>filesys.h</li>
+</ul>
+</li>
+</ul>
+<h3 id="implementation-in-exceptioncc">implementation in exception.cc</h3>
+<p>Finish the code for SC_Open, SC_Write, SC_Read, SC_Close</p>
+<p>For example, the code for <code>SC_Write</code>:</p>
+<pre class="hljs"><code><div>case SC_Write :
+    val = kernel-&gt;machine-&gt;ReadRegister(4);
+    numChar = kernel-&gt;machine-&gt;ReadRegister(5);
+    fileID = kernel-&gt;machine-&gt;ReadRegister(6);
+    {
+        char *buffer = &amp;(kernel-&gt;machine-&gt;mainMemory[val]);
+        status = SysWrite(buffer, numChar, fileID);
+        DEBUG(dbgSys, &quot;SC_Write returning status &quot; &lt;&lt; status &lt;&lt; &quot;\n&quot;);
+        kernel-&gt;machine-&gt;WriteRegister(2, (int)status);
+    }
+    kernel-&gt;machine-&gt;WriteRegister(PrevPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg));
+    kernel-&gt;machine-&gt;WriteRegister(PCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
+    kernel-&gt;machine-&gt;WriteRegister(NextPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
+    return;
+    ASSERTNOTREACHED();
+    break;
+</div></code></pre>
+<p>We get the start of memory from register 4, how many bytes or char we need to write in register 5, and fileID from register 6. After having these values, we call the kernel using <code>Syswrite</code> for operation. Here, the <code>buffer</code> is the pointer to <code>mainMemory</code>. At the end, we advance Program Counter for one word.</p>
+<p>The other example:</p>
+<pre class="hljs"><code><div>case SC_Read :
+    // starting address for user program's memory
+    val = kernel-&gt;machine-&gt;ReadRegister(4);
+    // how many bytes should OS reads
+    numChar = kernel-&gt;machine-&gt;ReadRegister(5);
+    fileID = kernel-&gt;machine-&gt;ReadRegister(6);
+
+    if (val &lt; 0 || numChar &lt; 0 || (val+numChar) &gt; MemorySize) {
+        kernel-&gt;machine-&gt;WriteRegister(2, -1); // return -1 for error
+    } else {
+        // buffer is address to mainmemory
+        char *buffer = &amp;(kernel-&gt;machine-&gt;mainMemory[val]);
+        status = SysRead(buffer, numChar, fileID);
+        DEBUG(dbgSys, &quot;SC_Read returning status &quot; &lt;&lt; status &lt;&lt; &quot;\n&quot;);
+        kernel-&gt;machine-&gt;WriteRegister(2, (int)status);
+    }
+
+    kernel-&gt;machine-&gt;WriteRegister(PrevPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg));
+    kernel-&gt;machine-&gt;WriteRegister(PCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
+    kernel-&gt;machine-&gt;WriteRegister(NextPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
+
+    return;
+    ASSERTNOTREACHED();
+    break;
+</div></code></pre>
+<p>Same, we get the needed values from register 4, 5, 6. Afterwards, we check some conditions such as is memory reading in the valid range. After that we invoke <code>SysRead</code> to let kernel do stuff. Then at the end we forward our PC.</p>
+<ul>
+<li>Other system call is implemented in similar ways.</li>
+</ul>
+<h3 id="implementation-in-ksyscallh">Implementation in ksyscall.h</h3>
+<p>this is the implementation</p>
+<pre class="hljs"><code><div>
+OpenFileId SysOpen(char *name)
+{
+    DEBUG(dbgSys, &quot;In ksyscall.h:OpenFileId, into fileSystem-&gt;OpenAFile, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
+    return kernel-&gt;fileSystem-&gt;OpenAFile(name);
+    DEBUG(dbgTraCode, &quot;return from ksyscall.h:OpenFileId, into fileSystem-&gt;OpenAFile, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
+}
+
+int SysWrite(char *buffer, int size, OpenFileId id)
+{
+	return kernel-&gt;fileSystem-&gt;WriteFile(buffer, size, id);
+}
+
+int SysRead(char *buffer, int size, OpenFileId id)
+{
+    return kernel-&gt;fileSystem-&gt;ReadFile(buffer, size, id);
+}
+
+int SysClose(OpenFileId id)
+{
+	return kernel-&gt;fileSystem-&gt;CloseFile(id);
+}
+
+</div></code></pre>
+<p>We invoke kernel level functions to deal with system call. These function are all inside <code>fileSystem</code> class.</p>
+<h3 id="implementation-of-filesysh">Implementation of filesys.h</h3>
+<ul>
+<li>Explanation of variables</li>
+</ul>
+<p><code>OpenFileTable</code> is where the <code>OpenFileId</code> are stored</p>
+<pre class="hljs"><code><div>FileSystem() {
+    for (int i = 0; i &lt; 20; i++) OpenFileTable[i] = NULL;
+}
+</div></code></pre>
+<ul>
+<li>Implementation for <code>OpenAFile</code></li>
+</ul>
+<pre class="hljs"><code><div> OpenFileId OpenAFile(char *name) {
+        // find available slot in openFileTable
+        for (OpenFileId id = 0; id &lt; MAX_OPEN_FILES; id++) {
+            if (OpenFileTable[id] == NULL) {
+                int fileDescriptor = OpenForReadWrite(name, FALSE);
+                if (fileDescriptor == -1) {
+                    // can't open a file
+                    return -1;
+                }
+                OpenFileTable[id] = new OpenFile(fileDescriptor);
+                return id;
+            }
+        }
+        // no availble slot
+        return -1;
+    }
+</div></code></pre>
+<p>Firstly, iterate through <code>openFileTable</code> and find a spot, if there's no spot we return -1. Else, we create a new File object and store inside <code>OpenFileTable</code>.</p>
+<p>The <code>OpenForReadWrite</code> will return the state of file opening after opening a file. If we can't open a file then also return -1.</p>
+<ul>
+<li>Implementation for <code>WriteFile</code></li>
+</ul>
+<pre class="hljs"><code><div>    int WriteFile(char *buffer, int size, OpenFileId id){
+        if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
+            // is not valid ID
+            return -1;
+        }
+        int bytesWritten = OpenFileTable[id]-&gt;Write(buffer, size);
+
+        if (bytesWritten &lt; 0) {
+            return -1;
+        }
+	    return bytesWritten;
+    }
+</div></code></pre>
+<p>for writing file, we point to our OpenFileTable[id] and use <code>Write</code> to write data into the mainMemory. It will how many bytes have be written. If it's the value smaller than 0 it means write fail, so return -1.</p>
+<ul>
+<li>Implementation for <code>ReadFile</code></li>
+</ul>
+<pre class="hljs"><code><div>    int ReadFile(char *buffer, int size, OpenFileId id){
+        if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
+            // is not valid ID
+            return -1;
+        }
+        int bytesRead = OpenFileTable[id]-&gt;Read(buffer, size);
+        if (bytesRead &lt; 0) {
+            return -1;
+        }
+        return bytesRead;
+    }
+</div></code></pre>
+<p>Similar to <code>WriteFile</code> but instead using <code>Write</code> we <code>Read</code> from the main memory.</p>
+<ul>
+<li>Implementation for <code>CloseFile</code></li>
+</ul>
+<pre class="hljs"><code><div>int CloseFile(OpenFileId id){
+    if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
+        // is not valid ID
+        return -1;
+    }
+    delete OpenFileTable[id];
+    OpenFileTable[id] = NULL;
+    return 1; // delete successful
+}
+</div></code></pre>
+<p>We simply release the File object and return 1 when delete is successful.</p>
+<h3 id="implementation-of-syscallh">Implementation of syscall.h</h3>
+<pre class="hljs"><code><div>#define SC_Open	6
+#define SC_Read	7
+#define SC_Write	8
+#define SC_Seek 9
+#define SC_Close	10
+</div></code></pre>
+<p>Here, we uncomment the system call number so exception could be caught when system call is being raise when running MIPS instructions.</p>
+<h3 id="what-difficulties-did-you-encounter-when-implementing-this-assignment">What difficulties did you encounter when implementing this assignment?</h3>
+<ol>
+<li>Didn't know which files to modify. Especially I haven't done anything related to system before, so it took me a lot of time to understand each components.</li>
+</ol>
+<h3 id="any-feedback-you-would-like-to-let-us-know">Any feedback you would like to let us know.</h3>
+<ol>
+<li>Thank you for preparing this homework TA and Prof. Chou.</li>
+</ol>
+
+</body>
+</html>
