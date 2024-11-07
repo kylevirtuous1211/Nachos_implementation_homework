@@ -269,23 +269,32 @@ initial registers, load page table, then run the user program
 * passed parameters:
 `char *fileName`: the file containing the object code to load into memory
 
+open the executable file using fileSystem, initializes NoffHeader `noffH`
 ```
 bool AddrSpace::Load(char *fileName) {
     OpenFile *executable = kernel->fileSystem->Open(fileName);
     NoffHeader noffH;
     unsigned int size;
-
+```
+case when the executable cannot be open
+```
     if (executable == NULL) {
         cerr << "Unable to open file " << fileName << "\n";
         return FALSE;
     }
-
+```
+verify that the file is of the expected format before processing it.
+if it's not `NOFFMAGIC` you should swap it
+SwapHeader so `noffH.noffMagic` == `NOFFMAGIC`
+```
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) &&
         (WordToHost(noffH.noffMagic) == NOFFMAGIC))
         SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
-
+```
+RDATA is for read only file. Here we calculate the address space needed
+```
 #ifdef RDATA
     // how big is address space?
     size = noffH.code.size + noffH.readonlyData.size + noffH.initData.size +
@@ -297,6 +306,9 @@ bool AddrSpace::Load(char *fileName) {
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size + UserStackSize;  // we need to increase the size
                                                                                            // to leave room for the stack
 #endif
+```
+calculate how many pages needed using `numPages`
+```
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
@@ -306,8 +318,10 @@ bool AddrSpace::Load(char *fileName) {
                                        // virtual memory
 
     DEBUG(dbgAddr, "Initializing address space: " << numPages << ", " << size);
-
-    // then, copy in the code and data segments into memory
+```
+Copy the code `noffH.code` and data segments `noffH.initData` into main memory.
+Using `OpenFile::ReadAt(char *into, int numBytes, int position)`
+```
     // Note: this code assumes that virtual address = physical address
     if (noffH.code.size > 0) {
         DEBUG(dbgAddr, "Initializing code segment.");
@@ -323,7 +337,9 @@ bool AddrSpace::Load(char *fileName) {
             &(kernel->machine->mainMemory[noffH.initData.virtualAddr]),
             noffH.initData.size, noffH.initData.inFileAddr);
     }
-
+```
+Then, we write readonlyData into main memory
+```
 #ifdef RDATA
     if (noffH.readonlyData.size > 0) {
         DEBUG(dbgAddr, "Initializing read only data segment.");
@@ -333,7 +349,9 @@ bool AddrSpace::Load(char *fileName) {
             noffH.readonlyData.size, noffH.readonlyData.inFileAddr);
     }
 #endif
-
+```
+close file at the end of load file
+```
     delete executable;  // close file
     return TRUE;        // success
 }
@@ -341,12 +359,101 @@ bool AddrSpace::Load(char *fileName) {
 ```
 # 1-3. threads/kernel.cc
 ## Kernel::Kernel()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
+* purpose: Constructor for `Kernel` object to interpret command line arguments in order to determine flags
+* initialize:
+`argc`: argument count
+`argv`: argument vector that points to the arguments
 
-* passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
+initialize flags variables for kernel object
+```
+Kernel::Kernel(int argc, char **argv) {
+    randomSlice = FALSE;
+    debugUserProg = FALSE;
+    execExit = FALSE;
+    consoleIn = NULL;   // default is stdin
+    consoleOut = NULL;  // default is stdout
+#ifndef FILESYS_STUB
+    formatFlag = FALSE;
+#endif
+    reliability = 1;  // network reliability, default is 1.0
+    hostName = 0;     // machine id, also UNIX socket name
+                      // 0 is the default machine id
+```
+what each flag does:
+* -rs: enable pseudo random time slicing
+```
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-rs") == 0) {
+            ASSERT(i + 1 < argc);
+            RandomInit(atoi(argv[i + 1]));  // initialize pseudo-random
+                                            // number generator
+            randomSlice = TRUE;
+            i++;
+```
+* -s: enable single step debugging
+```
+        } else if (strcmp(argv[i], "-s") == 0) {
+            debugUserProg = TRUE;
+```
+* -e: add another executable file
+```
+        } else if (strcmp(argv[i], "-e") == 0) {
+            execfile[++execfileNum] = argv[++i];
+            cout << execfile[execfileNum] << "\n";
+```
+* -ee: exit when all the threads finished running
+```
+        } else if (strcmp(argv[i], "-ee") == 0) {
+            // Added by @dasbd72
+            // To end the program after all the threads are done
+            execExit = TRUE;
+```
+* -ci: specifies the file to read input from
+```
+        } else if (strcmp(argv[i], "-ci") == 0) {
+            ASSERT(i + 1 < argc);
+            consoleIn = argv[i + 1];
+            i++;
+```
+* -co: specifies the file to output to
+```
+        } else if (strcmp(argv[i], "-co") == 0) {
+            ASSERT(i + 1 < argc);
+            consoleOut = argv[i + 1];
+            i++;
 
+#ifndef FILESYS_STUB
+        } else if (strcmp(argv[i], "-f") == 0) {
+            formatFlag = TRUE;
+#endif
+```
+* -n: likelyhood messages are dropped
+```
+        } else if (strcmp(argv[i], "-n") == 0) {
+            ASSERT(i + 1 < argc);  // next argument is float
+            reliability = atof(argv[i + 1]);
+            i++;
+```
+* -m: set machine id
+```
+        } else if (strcmp(argv[i], "-m") == 0) {
+            ASSERT(i + 1 < argc);  // next argument is int
+            hostName = atoi(argv[i + 1]);
+            i++;
+```
+* -u: print out Partial usage information
+```
+        } else if (strcmp(argv[i], "-u") == 0) {
+            cout << "Partial usage: nachos [-rs randomSeed]\n";
+            cout << "Partial usage: nachos [-s]\n";
+            cout << "Partial usage: nachos [-ci consoleIn] [-co consoleOut]\n";
+#ifndef FILESYS_STUB
+            cout << "Partial usage: nachos [-nf]\n";
+#endif
+            cout << "Partial usage: nachos [-n #] [-m #]\n";
+        }
+    }
+}
 ## Kernel::ExecAll()
 * purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
 
