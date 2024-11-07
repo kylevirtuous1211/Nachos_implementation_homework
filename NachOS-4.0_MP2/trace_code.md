@@ -239,12 +239,10 @@ initialize the memory to zero for clean space
 }
 ```
 ## AddrSpace::Execute()
-* purpose: Run a user program using the current thread
+* purpose: OS execute the current thread
 
 * passed parameters:
-`char *fileName`: for running the file `fileName`. Not sure because 
-it's not used in the procedure
-
+`char *fileName`: the name for thread executed 
 change the CPU's task to the current thread
 ```
 void AddrSpace::Execute(char *fileName) {
@@ -454,38 +452,153 @@ what each flag does:
         }
     }
 }
-## Kernel::ExecAll()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
+```
 
-* passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
+## Kernel::ExecAll()
+* purpose: execute all the executable file inside the main memory
+* recall: use -e to add executable file
+
+iterate through all the executable file, execute them in kernel using `Exec` (trace next!)
+```
+void Kernel::ExecAll() {
+    for (int i = 1; i <= execfileNum; i++) {
+        int a = Exec(execfile[i]);
+    }
+```
+Call Finish to release thread memory used in `Exec(char *name)`
+[Finish](##Thread::Finish())
+```
+    currentThread->Finish();
+    // Kernel::Exec();
+}
+```
 
 ## Kernel::Exec()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
+* purpose: Execute the executable file by creating a new thread and allocate address space for the thread
+* passed parameters: `char *name`: the debug name for the created thread
 
-* passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
-
+Create a new thread object within `Kernel` class 
+* t: an array of 10 pointers to `Thread` objects within `Kernel` class
+```
+int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
+```
+1. set the state of thread object to is executing
+2. allocate address space for the thread
+3. call `Fork()` on the current thread to start running `Thread *t`
+```
+    t[threadNum]->setIsExec();
+    t[threadNum]->space = new AddrSpace();
+    t[threadNum]->Fork((VoidFunctionPtr)&ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+```
+return the `threadNum` that was created
+```
+    return threadNum - 1;
+}
+```
 ## Kernel::ForkExecute()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
+* purpose: to execute the forked thread
 
 * passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
+`Thread *t`: the pointer to the thread object
+```
+void ForkExecute(Thread *t) {
+    if (!t->space->Load(t->getName())) {
+        return;  // executable not found
+    }
+```
+execute the thread using [Execute](#addrspaceexecute)
+```
+    t->space->Execute(t->getName());
+}
+```
 
 # 1-4. threads/scheduler.cc
 ## Scheduler::ReadyToRun()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
-
+* purpose: Mark a thread as ready, but not running. Put it on the ready list, for later scheduling onto the CPU.
 * passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
+`Thread *thread`: the thread pointer that points to the current thread object
 
+some debug/assertion check 
+```
+void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel->interrupt->getLevel() == IntOff);
+    DEBUG(dbgThread, "Putting thread on ready list: " << thread->getName());
+    // cout << "Putting thread on ready list: " << thread->getName() << endl ;
+```
+set the status of current thread to `READY` and append to ready list
+* `List<Thread *> *Scheduler::readyList`: queued ready thread implemented with linked-list
+```
+    thread->setStatus(READY);
+    readyList->Append(thread);
+}
+```
 ## Scheduler::Run()
-* purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.
-
+* purpose: Dispatch the CPU to nextThread. Use context switch routine to switch to next thread
+* Note: assume current running thread has already changed from running to blocked or ready
 * passed parameters:
-`VoidFunctionPtr func`: the procedure to be called
-`arg`: arguments passed to into the procedure
+`Thread *nextThread`: thread object to be executed
+`bool finishing`: is set if the current thread is to be deleted once we're no longer running on its stack
+
+create a `Thread` pointer that points to old thread
+```
+void Scheduler::Run(Thread *nextThread, bool finishing) {
+    Thread *oldThread = kernel->currentThread;
+```
+delete old thread if `finishing` is set
+```
+    ASSERT(kernel->interrupt->getLevel() == IntOff);
+
+    if (finishing) {  // mark that we need to delete current thread
+        ASSERT(toBeDestroyed == NULL);
+        toBeDestroyed = oldThread;
+    }
+```
+save the state of user program thread
+```
+    if (oldThread->space != NULL) {  // if this thread is a user program,
+        oldThread->SaveUserState();  // save the user's CPU registers
+        oldThread->space->SaveState(); // save address space data
+    }
+```
+if `oldThread` doesn't overflow, do context swtich with `nextThread`
+```
+    oldThread->CheckOverflow();  // check if the old thread
+                                 // had an undetected stack overflow
+
+    kernel->currentThread = nextThread;  // switch to the next thread
+    nextThread->setStatus(RUNNING);      // nextThread is now running
+
+    DEBUG(dbgThread, "Switching from: " << oldThread->getName() << " to: " << nextThread->getName());
+
+    // This is a machine-dependent assembly language routine defined
+    // in switch.s.  You may have to think
+    // a bit to figure out what happens after this, both from the point
+    // of view of the thread and from the perspective of the "outside world".
+
+    SWITCH(oldThread, nextThread); // Stop running oldThread, start run nextThread
+```
+debug messages, interrupt needs to be disabled so saving states of 2 process can be completed
+```
+    // we're back, running oldThread
+
+    // interrupts are off when we return from switch!
+    ASSERT(kernel->interrupt->getLevel() == IntOff);
+    DEBUG(dbgThread, "Now in thread: " << oldThread->getName());
+```
+destroy the old thread if it has been set `finishing` is true.
+Otherwise, restore register state and address space state
+```
+    CheckToBeDestroyed();  // check if thread we were running
+                           // before this one has finished
+                           // and needs to be cleaned up
+
+    if (oldThread->space != NULL) {     // if there is an address space
+        oldThread->RestoreUserState();  // to restore, do it.
+        oldThread->space->RestoreState();
+    }
+}
+```
+
+
