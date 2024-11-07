@@ -163,7 +163,7 @@ void Thread::Begin() {
 //	are disabled.
 //----------------------------------------------------------------------
 
-//
+
 void Thread::Finish() {
     (void)kernel->interrupt->SetLevel(IntOff);
     ASSERT(this == kernel->currentThread);

@@ -55,7 +55,7 @@ SwapHeader(NoffHeader *noffH) {
 }
 
 //----------------------------------------------------------------------
-// AddrSpace::AddrSpace
+// pace::AddrSAddrSpace
 // 	Create an address space to run a user program.
 //	Set up the translation from program memory to physical
 //	memory.  For now, this is really simple (1:1), since we are
