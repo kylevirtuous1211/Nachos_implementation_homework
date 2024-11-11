@@ -22,7 +22,6 @@ Relinquish the CPU, because the current thread has either *finished* or is *bloc
 1. assumes interrupts are already disabled
 2. if no threads on ready queue, CPU should be idle until next I/O interrupt (so thread could be inside the ready queue)
 
-### The code for this part
 Initializes next thread object:
 ```
     Thread *nextThread;
@@ -600,5 +599,66 @@ Otherwise, restore register state and address space state
     }
 }
 ```
+# Answering questions:
+1. How does Nachos allocate the memory space for a new thread(process)?
+Ans: `Thread::StackAllocate()` Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables. 
+
+2. How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?
+
+    1. Nachos uses `AddrSpace()` to initialize a new space for the thread. 
+    2. After thread is in `readyList` it will call `Finish` to be scheduled/run
+    3. `func` is `ForkExecute()` including `AddrSpace::Load()` and `AddrSpace::Execute()` which binary code will be load in `Main memory`
+    4. Then, `AddrSpace::Execute()` will call `AddrSpace::InitRegisters()` which initializes register and `AddrSpace::RestoreState()` to restore page table
+
+3. How does Nachos create and manage the page table?
+
+create the page table by dynamically allocate an array with size of `NumPhysPages` with the below attributes and initialize every page with a loop. Nachos can manage the page table. 
+
+* different attributes
+`virtualPage`: page number in virtual memory
+`physicalPage`: frame number
+`valid`: whether page is loaded in physical memory
+`use`: whether the page has been modified before, for page replacement algorithms
+`dirty`: check if the page has been write before since loaded from disk
+```
+    for (int i = 0; i < NumPhysPages; i++) {
+        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+```
+initialize the memory to zero for clean space
+```
+    // zero out the entire address space
+    bzero(kernel->machine->mainMemory, MemorySize);
+}
+```
+4. How does Nachos translate addresses?
+In `addrspace.cc` we can find
+virtual page number: `unsigned int vpn = vaddr / PageSize;`
+offset: `unsigned int offset = vaddr % PageSize`
+page table entry: ` pte = &pageTable[vpn];`
+physical frame number: `pfn = pte->physicalPage;`
+
+Physical Addreess: `*paddr = pfn * PageSize + offset;`
+
+5. How Nachos initializes the machine status (registers, etc) before running a thread(process)?
+
+Initializing a newly created thread includes:
+* program counter (PCstate): points to threadroot
+* startup program counter (StartupPCState): do some initialization for the thread using ThreadBegin
+* Initial program counter (InitialPCState): points to func that's to be executed
+* Initial argument state (InitialArgState): points to the argument that passed to func
+* When done program counter (WhenDonePCState): points to ThreadFinish for cleanup
 
 
+6. Which object in Nachos acts the role of process control block
+
+`class Thread` act as process control block. Which has member function like `Fork()`, `Sleep()`, `Finish()`, `setStatus()`. Which corresponds to create, wait, end.
+
+7. When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?
+
+When we call `Kernel::ExecAll()`, we will call Kernel::Exec() based on how many user program we and create thread using fork() and allocate stack. Then call `schedular->ReadyToRun(this)` add to `ReadyList`
