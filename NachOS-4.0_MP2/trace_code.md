@@ -1,17 +1,5 @@
 Team Contributions:
-| work | 陳安楷 | 林夢遠 |
-|----------|----------|----------|
-| Trace SC_Halt    | *****     |      |
-| Trace SC_Create    | *****     |      |
-| Trace SC_PrintInt    |      | *****     |
-| Trace Makefile    | *****     |      |
-| Write exception.cc    |      | *****     |
-| Write ksyscall.h    |      | *****     |
-|  Write filesys.h   | *****     |    |
-|  Write syscall.h   | *****     |     |
-|  Debug & testing  |     | *****    |
-
-我們 code tracing 的報告各自打，然後第二部分寫system call報告由陳安楷撰寫
+Everything is done by 陳安楷
 
 # 1-1. threads/thread.cc
 ## Thread::Sleep()
@@ -601,18 +589,71 @@ Otherwise, restore register state and address space state
 ```
 # Answering questions:
 1. How does Nachos allocate the memory space for a new thread(process)?
-Ans: `Thread::StackAllocate()` Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables. 
+
+Ans: In main function calls `Kernel::ExecAll()` function that runs all the executable file. In `Kernel::Exec`, new Thread object is being created
+```
+    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]->setIsExec();
+    t[threadNum]->space = new AddrSpace();
+    t[threadNum]->Fork((VoidFunctionPtr)&ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+```
+So the virtual space and physical space mapping is done by dynamic allocating a new `AddrSpace()` While in `Thread::Fork()`, `Thread::StackAllocate()` the system allocates and initializes an execution stack. Allowing each thread to have its own memory space for function calls and local variables. 
 
 2. How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?
 
-    1. Nachos uses `AddrSpace()` to initialize a new space for the thread. 
-    2. After thread is in `readyList` it will call `Finish` to be scheduled/run
-    3. `func` is `ForkExecute()` including `AddrSpace::Load()` and `AddrSpace::Execute()` which binary code will be load in `Main memory`
-    4. Then, `AddrSpace::Execute()` will call `AddrSpace::InitRegisters()` which initializes register and `AddrSpace::RestoreState()` to restore page table
+Inside Kernel::Exec(char *name)
+```
+int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]->setIsExec();
+    t[threadNum]->space = new AddrSpace();
+    t[threadNum]->Fork((VoidFunctionPtr)&ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+```
+
+1. Nachos uses `AddrSpace()` to initialize a new space for the thread. 
+
+2. Then `t[threadNum]->Fork((VoidFunctionPtr)&` loads binary inside the virtual table and physical space. While calls `StackAllocate` which allocates space for `this->InitRegisters()` and `this->RestoreState()`
+```
+void Thread::Fork(VoidFunctionPtr func, void *arg) {
+    Interrupt *interrupt = kernel->interrupt;
+    Scheduler *scheduler = kernel->scheduler;
+    IntStatus oldLevel;
+
+    DEBUG(dbgThread, "Forking thread: " << name << " f(a): " << (int)func << " " << arg);
+    StackAllocate(func, arg);
+
+    oldLevel = interrupt->SetLevel(IntOff);
+    scheduler->ReadyToRun(this);  // ReadyToRun assumes that interrupts
+                                  // are disabled!
+    (void)interrupt->SetLevel(oldLevel);
+}
+```
+```
+void AddrSpace::Execute(char *fileName) {
+    kernel->currentThread->space = this;
+
+    this->InitRegisters();  // set the initial register values
+    this->RestoreState();   // load page table register
+
+    kernel->machine->Run();  // jump to the user progam
+
+    ASSERTNOTREACHED();  // machine->Run never returns;
+                         // the address space exits
+                         // by doing the syscall "exit"
+}
+```
+
+3. When `Thread::Fork()` is called, thread will be added in `readyList` it will be scheduled to run when ``Thread::Yield()` is called at `Interrupt::OneTick()` Then when `Schedular::FindNextToRun` is called at either `Thread::Sleep()` or `Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.
 
 3. How does Nachos create and manage the page table?
 
-create the page table by dynamically allocate an array with size of `NumPhysPages` with the below attributes and initialize every page with a loop. Nachos can manage the page table. 
+create the page table by dynamically allocate an array with size of the executable file. Then, we load data page by page while setting the below attributes. 
 
 * different attributes
 `virtualPage`: page number in virtual memory
@@ -620,6 +661,7 @@ create the page table by dynamically allocate an array with size of `NumPhysPage
 `valid`: whether page is loaded in physical memory
 `use`: whether the page has been modified before, for page replacement algorithms
 `dirty`: check if the page has been write before since loaded from disk
+
 ```
     for (int i = 0; i < NumPhysPages; i++) {
         pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
@@ -632,8 +674,8 @@ create the page table by dynamically allocate an array with size of `NumPhysPage
 ```
 initialize the memory to zero for clean space
 ```
-    // zero out the entire address space
-    bzero(kernel->machine->mainMemory, MemorySize);
+// zero out the entire address space
+    bzero(kernel->machine->mainMemory, PageSize);
 }
 ```
 4. How does Nachos translate addresses?
@@ -661,4 +703,78 @@ Initializing a newly created thread includes:
 
 7. When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?
 
+```
+
+```
 When we call `Kernel::ExecAll()`, we will call Kernel::Exec() based on how many user program we and create thread using fork() and allocate stack. Then call `schedular->ReadyToRun(this)` add to `ReadyList`
+
+
+# Code implementation
+
+### machine.h
+1. added a exception type called MemoryLimException to catch insufficient memory 
+
+```
+enum ExceptionType { NoException,            // Everything ok!
+                     SyscallException,       // A program executed a system call.
+                     PageFaultException,     // No valid translation found
+                     ReadOnlyException,      // Write attempted to page marked
+                                             // "read-only"
+                     BusErrorException,      // Translation resulted in an
+                                             // invalid physical address
+                     AddressErrorException,  // Unaligned reference or one that
+                                             // was beyond the end of the
+                                             // address space
+                     OverflowException,      // Integer overflow in add or sub.
+                     IllegalInstrException,  // Unimplemented or reserved instr.
+                    
+                     MemoryLimException,     // added: Insufficient memory
+                     NumExceptionTypes
+};
+```
+2. Create data structure for physical memory in `kernel.h` and `kernel.cc`
+use bitmap from `lib`
+
+in `bitmap.cc`. I implemented the Find function
+```
+// find the first bit that's not set
+int Bitmap::Find(int which) {
+    for (int i = 0; i < numBits; i++) {
+        if (!Test(i)) {
+            return i;
+        }
+    }
+    return -1;
+}
+```
+in `kernel.h`
+```
+   Bitmap *FrameBitmap;
+    int get_available_physical_pages();
+    void allocate_and_mark_physical_page();
+    void release_physical_page(int page_n);
+```
+in `Kernel::Initialize()` allocate memory for frame table structure
+```
+    FrameBitmap = new Bitmap(NumPhysPages);
+```
+implement member function for FrameBitmap
+```
+int Kernel::get_available_physical_pages() {
+    return FrameBitmap->NumClear();
+}
+
+void Kernel::allocate_and_mark_physical_page() {
+    FrameBitmap->FindAndSet();
+}
+
+void Kernel::release_physical_page(int pageNumber) {
+    FrameBitmap->Clear(pageNumber);
+}
+```
+
+3. set up `valid`, `readOnly`, `use` and `dirty` fields for your page table
+```
+
+```
+

@@ -365,503 +365,745 @@ code {
           : 'default'
     });
   </script>
-<p>Team Contributions:</p>
-<table>
-<thead>
-<tr>
-<th>work</th>
-<th>陳安楷</th>
-<th>林夢遠</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Trace SC_Halt</td>
-<td>*****</td>
-<td></td>
-</tr>
-<tr>
-<td>Trace SC_Create</td>
-<td>*****</td>
-<td></td>
-</tr>
-<tr>
-<td>Trace SC_PrintInt</td>
-<td></td>
-<td>*****</td>
-</tr>
-<tr>
-<td>Trace Makefile</td>
-<td>*****</td>
-<td></td>
-</tr>
-<tr>
-<td>Write exception.cc</td>
-<td></td>
-<td>*****</td>
-</tr>
-<tr>
-<td>Write ksyscall.h</td>
-<td></td>
-<td>*****</td>
-</tr>
-<tr>
-<td>Write filesys.h</td>
-<td>*****</td>
-<td></td>
-</tr>
-<tr>
-<td>Write syscall.h</td>
-<td>*****</td>
-<td></td>
-</tr>
-<tr>
-<td>Debug &amp; testing</td>
-<td></td>
-<td>*****</td>
-</tr>
-</tbody>
-</table>
-<p>我們 code tracing 的報告各自打，然後第二部分寫system call報告由陳安楷撰寫</p>
-<h2 id="tracing-schalt-system-call">Tracing SC_Halt system call</h2>
-<h4 id="how-it-passes-to-kernel">how it passes to kernel?</h4>
-<p><code>Machine-&gt;run</code> 讓 process 開始跑之後，不斷的讓 CPU 去用 <code>OneInstruction</code> 去 fetch instructions，在執行 instruction 的時候如果遇到 exception 那就要交給我們的 OS kernel 去處理，像是 Overflow, AddressError, I/O, 檔案讀寫。然後這邊在呼叫 <code>SysHalt()</code> 釋放 kernel 物件的記憶體</p>
-<h3 id="machinemipssimcc-machinerun">machine/mipssim.cc Machine::run():</h3>
+<p>Team Contributions:
+Everything is done by 陳安楷</p>
+<h1 id="1-1-threadsthreadcc">1-1. threads/thread.cc</h1>
+<h2 id="threadsleep">Thread::Sleep()</h2>
 <ul>
-<li>goal: swtich to user mode and fetch instructions</li>
+<li>
+<p>Main purpose:
+Relinquish the CPU, because the current thread has either <em>finished</em> or is <em>blocked</em> waiting on a synchronization</p>
+</li>
+<li>
+<p>Note:</p>
+</li>
 </ul>
-<p>In line 54, it allocates memory for Instruction object.</p>
-<p>line 56, it says debug mode for the machine is enabled, it would output system's thread's info and system's total ticks count</p>
-<p>Line 60, it <em><strong>sets system's CPU to user mode</strong></em> so it could execute user-level instructions</p>
-<p>Line 61, it starts <strong>infinite loop</strong> for executing instruction. Inside the loop, it executes the instruction inside the <code>OneInstruction()</code> function. Then after executing, the system <strong>advances by one tick</strong></p>
-<p>line 73, it debugs using single step mode. Therefore, if the <code>singleStep</code> flag is enabled and tick count is larger than runUntilTime, which is probably for controlled execution, the <code>Debugger</code> will be called.</p>
-<h3 id="machinemipssimcc-machineoneinstructioninstruction-instr">machine/mipssim.cc Machine::OneInstruction(Instruction *instr)</h3>
+<ol>
+<li>assumes interrupts are already disabled</li>
+<li>if no threads on ready queue, CPU should be idle until next I/O interrupt (so thread could be inside the ready queue)</li>
+</ol>
+<p>Initializes next thread object:</p>
+<pre class="hljs"><code><div>    Thread *nextThread;
+</div></code></pre>
+<p>Do some assertion and debug code:</p>
+<pre class="hljs"><code><div>    ASSERT(this == kernel-&gt;currentThread);
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Sleeping thread: &quot; &lt;&lt; name);
+    DEBUG(dbgTraCode, &quot;In Thread::Sleep, Sleeping thread: &quot; &lt;&lt; name &lt;&lt; &quot;, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
+</div></code></pre>
+<p>change the current thread status to blocked</p>
 <ul>
-<li>goal: execute the instruction by fetching instruction using <code>ReadMem</code></li>
+<li>status could either be <code>ready</code> <code>running</code> or <code>blocked</code></li>
 </ul>
-<p>line 133~136: fetch instruction, store in <code>instr-&gt;value</code>, then Decode the instruction</p>
-<h4 id="instr-decode">instr-&gt;Decode():</h4>
-<pre class="hljs"><code><div>void Instruction::Decode() {
-    OpInfo *opPtr;
-
-    rs = (value &gt;&gt; 21) &amp; 0x1f;
-    rt = (value &gt;&gt; 16) &amp; 0x1f;
-    rd = (value &gt;&gt; 11) &amp; 0x1f;
-    opPtr = &amp;opTable[(value &gt;&gt; 26) &amp; 0x3f];
-    opCode = opPtr-&gt;opCode;
-    if (opPtr-&gt;format == IFMT) {
-        extra = value &amp; 0xffff;
-        if (extra &amp; 0x8000) {
-            extra |= 0xffff0000;
-        }
-    } else if (opPtr-&gt;format == RFMT) {
-        extra = (value &gt;&gt; 6) &amp; 0x1f;
-    } else {
-        extra = value &amp; 0x3ffffff;
+<pre class="hljs"><code><div>    status = BLOCKED;
+    // cout &lt;&lt; &quot;debug Thread::Sleep &quot; &lt;&lt; name &lt;&lt; &quot;wait for Idle\n&quot;;
+</div></code></pre>
+<p>when no thread is in the scheduler, CPU idle</p>
+<pre class="hljs"><code><div>    while ((nextThread = kernel-&gt;scheduler-&gt;FindNextToRun()) == NULL) {
+        kernel-&gt;interrupt-&gt;Idle();  // no one to run, wait for an interrupt
     }
-    if (opCode == SPECIAL) {
-        opCode = specialTable[value &amp; 0x3f];
-    } else if (opCode == BCOND) {
-        int i = value &amp; 0x1f0000;
+</div></code></pre>
+<p>When there is a thread in schedular</p>
+<pre class="hljs"><code><div>    // returns when it's time for us to run
+    kernel-&gt;scheduler-&gt;Run(nextThread, finishing);
+</div></code></pre>
+<h2 id="threadstackallocate">Thread::StackAllocate()</h2>
+<ul>
+<li>
+<p>purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+</li>
+<li>
+<p>passed parameters:
+<code>VoidFunctionPtr func</code>: the procedure to be called
+<code>arg</code>: arguments passed to into the procedure</p>
+</li>
+</ul>
+<p>allocate a bounded array, if dereference outside the bounded area will cause a segmentation error.</p>
+<pre class="hljs"><code><div>void Thread::StackAllocate(VoidFunctionPtr func, void *arg) {
+    stack = (int *)AllocBoundedArray(StackSize * sizeof(int));
+</div></code></pre>
+<p>Each ISA has unique characteristics that influence how certain operations are performed, especially those related to low-level memory management and stack handling. Having code for different ISA increases the portability of software</p>
+<ul>
+<li><code>stacktop</code>: Definition: A variable in the code that holds the initial address of the top of the stack memory allocated for a thread.</li>
+</ul>
+<p>stackTop andframe marker for different ISAs:</p>
+<pre class="hljs"><code><div>#ifdef PARISC
+    // HP stack works from low addresses to high addresses
+    // everyone else works the other way: from high addresses to low addresses
+    stackTop = stack + 16;  // HP requires 64-byte frame marker
+    stack[StackSize - 1] = STACK_FENCEPOST;
+#endif
 
-        if (i == 0) {
-            opCode = OP_BLTZ;
-        } else if (i == 0x10000) {
-            opCode = OP_BGEZ;
-        } else if (i == 0x100000) {
-            opCode = OP_BLTZAL;
-        } else if (i == 0x110000) {
-            opCode = OP_BGEZAL;
-        } else {
-            opCode = OP_UNIMP;
+#ifdef SPARC
+    stackTop = stack + StackSize - 96;  // SPARC stack must contains at
+                                        // least 1 activation record
+                                        // to start with.
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef PowerPC                          // RS6000
+    stackTop = stack + StackSize - 16;  // RS6000 requires 64-byte frame marker
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef DECMIPS
+    stackTop = stack + StackSize - 4;  // -4 to be on the safe side!
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef ALPHA
+    stackTop = stack + StackSize - 8;  // -8 to be on the safe side!
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef x86
+    // the x86 passes the return address on the stack.  In order for SWITCH()
+    // to go to ThreadRoot when we switch to this thread, the return addres
+    // used in SWITCH() must be the starting address of ThreadRoot.
+    stackTop = stack + StackSize - 4;  // -4 to be on the safe side!
+    *(--stackTop) = (int)ThreadRoot;
+    *stack = STACK_FENCEPOST;
+#endif
+</div></code></pre>
+<p>initializing the machine state of a newly created thread. Which includes</p>
+<ul>
+<li>program counter (PCstate): points to threadroot</li>
+<li>startup program counter (StartupPCState): do some initialization for the thread using <code>ThreadBegin</code></li>
+<li>Initial program counter (InitialPCState): points to func that's to be executed</li>
+<li>Initial argument state (InitialArgState): points to the argument that passed to func</li>
+<li>When done program counter (WhenDonePCState): points to <code>ThreadFinish</code> for cleanup</li>
+</ul>
+<pre class="hljs"><code><div>#ifdef PARISC
+    machineState[PCState] = PLabelToAddr(ThreadRoot);
+    machineState[StartupPCState] = PLabelToAddr(ThreadBegin);
+    machineState[InitialPCState] = PLabelToAddr(func);
+    machineState[InitialArgState] = arg;
+    machineState[WhenDonePCState] = PLabelToAddr(ThreadFinish);
+#else
+    machineState[PCState] = (void *)ThreadRoot;
+    machineState[StartupPCState] = (void *)ThreadBegin;
+    machineState[InitialPCState] = (void *)func;
+    machineState[InitialArgState] = (void *)arg;
+    machineState[WhenDonePCState] = (void *)ThreadFinish;
+#endif
+}
+</div></code></pre>
+<h2 id="threadfinish">Thread::Finish()</h2>
+<ul>
+<li>purpose: Called by ThreadRoot when a thread is done executing the forked procedure.</li>
+<li>note: tell the schedular to call the destructor once running on a different thread</li>
+</ul>
+<p>disable the interrupt first</p>
+<ul>
+<li>interrupt can be disabled <code>IntOff</code> or enabled <code>IntOn</code></li>
+</ul>
+<pre class="hljs"><code><div>void Thread::Finish() {
+    (void)kernel-&gt;interrupt-&gt;SetLevel(IntOff);
+</div></code></pre>
+<p>do assertion and debug</p>
+<pre class="hljs"><code><div>    ASSERT(this == kernel-&gt;currentThread);
+    DEBUG(dbgThread, &quot;Finishing thread: &quot; &lt;&lt; name);
+</div></code></pre>
+<p>if all the threads are finished</p>
+<ul>
+<li>decrease the number of running threads
+<ul>
+<li>if the number of running threads == 0 then shut down Nachos</li>
+</ul>
+</li>
+</ul>
+<pre class="hljs"><code><div>    if (kernel-&gt;execExit &amp;&amp; this-&gt;getIsExec()) {
+        kernel-&gt;execRunningNum--;
+        if (kernel-&gt;execRunningNum == 0) {
+            kernel-&gt;interrupt-&gt;Halt();
+        }
+    }
+</div></code></pre>
+<p>the current thread has finished so call <code>thread::Sleep()</code></p>
+<pre class="hljs"><code><div>    Sleep(TRUE);  // invokes SWITCH
+    // not reached
+}
+</div></code></pre>
+<h2 id="threadfork">Thread::Fork()</h2>
+<ul>
+<li>
+<p>purpose: Invoke (*func)(arg), allowing caller and callee to execute
+concurrently.</p>
+</li>
+<li>
+<p>passed parameters:
+<code>VoidFunctionPtr func</code>: the procedure to be called
+<code>arg</code>: arguments passed to into the procedure</p>
+</li>
+<li>
+<p>implementation step:</p>
+</li>
+</ul>
+<ol>
+<li>allocate a stack</li>
+<li>initial the stack so that a call to SWITCH will run the procedure</li>
+<li>put the thread on ready queue</li>
+</ol>
+<p>Initialize schedular and interrupt object</p>
+<pre class="hljs"><code><div>void Thread::Fork(VoidFunctionPtr func, void *arg) {
+    Interrupt *interrupt = kernel-&gt;interrupt;
+    Scheduler *scheduler = kernel-&gt;scheduler;
+    IntStatus oldLevel;
+</div></code></pre>
+<p>debug message and allocate stack using <code>StackAllocate</code></p>
+<pre class="hljs"><code><div>    DEBUG(dbgThread, &quot;Forking thread: &quot; &lt;&lt; name &lt;&lt; &quot; f(a): &quot; &lt;&lt; (int)func &lt;&lt; &quot; &quot; &lt;&lt; arg);
+    StackAllocate(func, arg);
+</div></code></pre>
+<p>Turning off the interrupt and schdule the thread to ready queue</p>
+<p>WHY turn off??
+Disabling Interrupts (IntOff): Turning off interrupts means that the processor
+will not respond to these interrupt signals. This is often done to enter a
+critical section where shared resources are accessed, preventing race conditions or inconsistent states.</p>
+<pre class="hljs"><code><div>    oldLevel = interrupt-&gt;SetLevel(IntOff);
+    scheduler-&gt;ReadyToRun(this);  // ReadyToRun assumes that interrupts
+                                  // are disabled!
+    (void)interrupt-&gt;SetLevel(oldLevel);
+}
+</div></code></pre>
+<h1 id="1-2-userprogaddrspacecc">1-2. userprog/addrspace.cc</h1>
+<h2 id="addrspaceaddrspace">AddrSpace::AddrSpace()</h2>
+<ul>
+<li>
+<p>what is address space?
+An address space is the range of memory addresses that a process can use to access its data and instructions.
+Each process operates as if it has its own dedicated memory</p>
+</li>
+<li>
+<p>purpose: the constructor to create a new address space</p>
+</li>
+</ul>
+<p>create a new page pageTable</p>
+<pre class="hljs"><code><div>AddrSpace::AddrSpace() {
+    pageTable = new TranslationEntry[NumPhysPages];
+</div></code></pre>
+<p>initialize page content inside the page pageTable</p>
+<ul>
+<li>different attributes
+<code>virtualPage</code>: page number in virtual memory
+<code>physicalPage</code>: frame number
+<code>valid</code>: whether page is loaded in physical memory
+<code>use</code>: whether the page has been modified before, for page replacement algorithms
+<code>dirty</code>: check if the page has been write before since loaded from disk</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 0; i &lt; NumPhysPages; i++) {
+        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+</div></code></pre>
+<p>initialize the memory to zero for clean space</p>
+<pre class="hljs"><code><div>    // zero out the entire address space
+    bzero(kernel-&gt;machine-&gt;mainMemory, MemorySize);
+}
+</div></code></pre>
+<h2 id="addrspaceexecute">AddrSpace::Execute()</h2>
+<ul>
+<li>
+<p>purpose: OS execute the current thread</p>
+</li>
+<li>
+<p>passed parameters:
+<code>char *fileName</code>: the name for thread executed
+change the CPU's task to the current thread</p>
+</li>
+</ul>
+<pre class="hljs"><code><div>void AddrSpace::Execute(char *fileName) {
+    kernel-&gt;currentThread-&gt;space = this;
+</div></code></pre>
+<p>initial registers, load page table, then run the user program</p>
+<pre class="hljs"><code><div>    this-&gt;InitRegisters();  // set the initial register values
+    this-&gt;RestoreState();   // load page table register
+
+    kernel-&gt;machine-&gt;Run();  // jump to the user progam
+
+    ASSERTNOTREACHED();  // machine-&gt;Run never returns;
+                         // the address space exits
+                         // by doing the syscall &quot;exit&quot;
+}
+</div></code></pre>
+<h2 id="addrspaceload">AddrSpace::Load()</h2>
+<ul>
+<li>
+<p>purpose: Load a user program into memory from a file</p>
+</li>
+<li>
+<p>passed parameters:
+<code>char *fileName</code>: the file containing the object code to load into memory</p>
+</li>
+</ul>
+<p>open the executable file using fileSystem, initializes NoffHeader <code>noffH</code></p>
+<pre class="hljs"><code><div>bool AddrSpace::Load(char *fileName) {
+    OpenFile *executable = kernel-&gt;fileSystem-&gt;Open(fileName);
+    NoffHeader noffH;
+    unsigned int size;
+</div></code></pre>
+<p>case when the executable cannot be open</p>
+<pre class="hljs"><code><div>    if (executable == NULL) {
+        cerr &lt;&lt; &quot;Unable to open file &quot; &lt;&lt; fileName &lt;&lt; &quot;\n&quot;;
+        return FALSE;
+    }
+</div></code></pre>
+<p>verify that the file is of the expected format before processing it.
+if it's not <code>NOFFMAGIC</code> you should swap it
+SwapHeader so <code>noffH.noffMagic</code> == <code>NOFFMAGIC</code></p>
+<pre class="hljs"><code><div>    executable-&gt;ReadAt((char *)&amp;noffH, sizeof(noffH), 0);
+    if ((noffH.noffMagic != NOFFMAGIC) &amp;&amp;
+        (WordToHost(noffH.noffMagic) == NOFFMAGIC))
+        SwapHeader(&amp;noffH);
+    ASSERT(noffH.noffMagic == NOFFMAGIC);
+</div></code></pre>
+<p>RDATA is for read only file. Here we calculate the address space needed</p>
+<pre class="hljs"><code><div>#ifdef RDATA
+    // how big is address space?
+    size = noffH.code.size + noffH.readonlyData.size + noffH.initData.size +
+           noffH.uninitData.size + UserStackSize;
+    // we need to increase the size
+    // to leave room for the stack
+#else
+    // how big is address space?
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size + UserStackSize;  // we need to increase the size
+                                                                                           // to leave room for the stack
+#endif
+</div></code></pre>
+<p>calculate how many pages needed using <code>numPages</code></p>
+<pre class="hljs"><code><div>    numPages = divRoundUp(size, PageSize);
+    size = numPages * PageSize;
+
+    ASSERT(numPages &lt;= NumPhysPages);  // check we're not trying
+                                       // to run anything too big --
+                                       // at least until we have
+                                       // virtual memory
+
+    DEBUG(dbgAddr, &quot;Initializing address space: &quot; &lt;&lt; numPages &lt;&lt; &quot;, &quot; &lt;&lt; size);
+</div></code></pre>
+<p>Copy the code <code>noffH.code</code> and data segments <code>noffH.initData</code> into main memory.
+Using <code>OpenFile::ReadAt(char *into, int numBytes, int position)</code></p>
+<pre class="hljs"><code><div>    // Note: this code assumes that virtual address = physical address
+    if (noffH.code.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing code segment.&quot;);
+        DEBUG(dbgAddr, noffH.code.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.code.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.code.virtualAddr]),
+            noffH.code.size, noffH.code.inFileAddr);
+    }
+    if (noffH.initData.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing data segment.&quot;);
+        DEBUG(dbgAddr, noffH.initData.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.initData.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.initData.virtualAddr]),
+            noffH.initData.size, noffH.initData.inFileAddr);
+    }
+</div></code></pre>
+<p>Then, we write readonlyData into main memory</p>
+<pre class="hljs"><code><div>#ifdef RDATA
+    if (noffH.readonlyData.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing read only data segment.&quot;);
+        DEBUG(dbgAddr, noffH.readonlyData.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.readonlyData.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.readonlyData.virtualAddr]),
+            noffH.readonlyData.size, noffH.readonlyData.inFileAddr);
+    }
+#endif
+</div></code></pre>
+<p>close file at the end of load file</p>
+<pre class="hljs"><code><div>    delete executable;  // close file
+    return TRUE;        // success
+}
+
+</div></code></pre>
+<h1 id="1-3-threadskernelcc">1-3. threads/kernel.cc</h1>
+<h2 id="kernelkernel">Kernel::Kernel()</h2>
+<ul>
+<li>purpose: Constructor for <code>Kernel</code> object to interpret command line arguments in order to determine flags</li>
+<li>initialize:
+<code>argc</code>: argument count
+<code>argv</code>: argument vector that points to the arguments</li>
+</ul>
+<p>initialize flags variables for kernel object</p>
+<pre class="hljs"><code><div>Kernel::Kernel(int argc, char **argv) {
+    randomSlice = FALSE;
+    debugUserProg = FALSE;
+    execExit = FALSE;
+    consoleIn = NULL;   // default is stdin
+    consoleOut = NULL;  // default is stdout
+#ifndef FILESYS_STUB
+    formatFlag = FALSE;
+#endif
+    reliability = 1;  // network reliability, default is 1.0
+    hostName = 0;     // machine id, also UNIX socket name
+                      // 0 is the default machine id
+</div></code></pre>
+<p>what each flag does:</p>
+<ul>
+<li>-rs: enable pseudo random time slicing</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 1; i &lt; argc; i++) {
+        if (strcmp(argv[i], &quot;-rs&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            RandomInit(atoi(argv[i + 1]));  // initialize pseudo-random
+                                            // number generator
+            randomSlice = TRUE;
+            i++;
+</div></code></pre>
+<ul>
+<li>-s: enable single step debugging</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-s&quot;) == 0) {
+            debugUserProg = TRUE;
+</div></code></pre>
+<ul>
+<li>-e: add another executable file</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-e&quot;) == 0) {
+            execfile[++execfileNum] = argv[++i];
+            cout &lt;&lt; execfile[execfileNum] &lt;&lt; &quot;\n&quot;;
+</div></code></pre>
+<ul>
+<li>-ee: exit when all the threads finished running</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-ee&quot;) == 0) {
+            // Added by @dasbd72
+            // To end the program after all the threads are done
+            execExit = TRUE;
+</div></code></pre>
+<ul>
+<li>-ci: specifies the file to read input from</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-ci&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            consoleIn = argv[i + 1];
+            i++;
+</div></code></pre>
+<ul>
+<li>-co: specifies the file to output to</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-co&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            consoleOut = argv[i + 1];
+            i++;
+
+#ifndef FILESYS_STUB
+        } else if (strcmp(argv[i], &quot;-f&quot;) == 0) {
+            formatFlag = TRUE;
+#endif
+</div></code></pre>
+<ul>
+<li>-n: likelyhood messages are dropped</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-n&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);  // next argument is float
+            reliability = atof(argv[i + 1]);
+            i++;
+</div></code></pre>
+<ul>
+<li>-m: set machine id</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-m&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);  // next argument is int
+            hostName = atoi(argv[i + 1]);
+            i++;
+</div></code></pre>
+<ul>
+<li>-u: print out Partial usage information</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-u&quot;) == 0) {
+            cout &lt;&lt; &quot;Partial usage: nachos [-rs randomSeed]\n&quot;;
+            cout &lt;&lt; &quot;Partial usage: nachos [-s]\n&quot;;
+            cout &lt;&lt; &quot;Partial usage: nachos [-ci consoleIn] [-co consoleOut]\n&quot;;
+#ifndef FILESYS_STUB
+            cout &lt;&lt; &quot;Partial usage: nachos [-nf]\n&quot;;
+#endif
+            cout &lt;&lt; &quot;Partial usage: nachos [-n #] [-m #]\n&quot;;
         }
     }
 }
 </div></code></pre>
-<p>138~147: for debug purpose</p>
-<p>150: update program counter, +4 because a word is 4 bytes</p>
-<p>155~696: Use the switch case structure for executing instructions. Because each instruction have a specific opCode.</p>
-<h3 id="machinemachinecc-machineraiseexception">machine/machine.cc Machine::RaiseException</h3>
+<h2 id="kernelexecall">Kernel::ExecAll()</h2>
 <ul>
-<li>
-<p>goal: transfer control to Nachos kernel from user mode</p>
-</li>
-<li>
-<p>args: &quot;which&quot;: the cause of kernel trap, &quot;badVaddr&quot;: virtual address causing the trap</p>
-</li>
+<li>purpose: execute all the executable file inside the main memory</li>
+<li>recall: use -e to add executable file</li>
 </ul>
-<p>line 98: invoke <code>Debugger</code></p>
-<p>line 99: store the virtual address that cause the trap inside a register</p>
-<p>line 103: After finishing anything in progress, change to kernel mode and handle the exception, then return back to user mode.</p>
-<h3 id="userprogexceptioncc-exceptionhandler">userprog/exception.cc ExceptionHandler()</h3>
-<ul>
-<li>goal: designed to handle exceptions that occur during the execution of a user program in the Nachos kernel. Exceptions allow user programs to request services from the operating system through system calls.</li>
-</ul>
-<p>we can write more code over here to handle more exception cases</p>
-<ul>
-<li>args: <code>which</code> is the cause of kernel trap</li>
-</ul>
-<p>Parameters:</p>
-<ul>
-<li>
-<p><code>val</code>: Used to store values passed in registers or read from memory.</p>
-</li>
-<li>
-<p><code>type</code>: Stores the <strong>system call number</strong>, which is in register 2 (r2) as part of the calling convention.</p>
-</li>
-</ul>
-<p>line 60~65: (SC_Halt) handles the SC_Halt system call, which shuts down the machine. It logs the event, invokes SysHalt() to perform the shutdown</p>
-<p>line 66~78: (SC_PrintInt): Reads an integer value from register 4.Then, calls <code>SysPrintInt(val)</code> to print the integer.Finally, Adjusts the program counters (<code>PrevPCReg</code>, <code>PCReg</code>, <code>and</code> <code>NextPCReg</code>) to point to the next instruction, avoiding an infinite loop by not re-executing the same system call repeatedly.</p>
-<p>line 79~88: (SC_MSG)
-Reads a pointer from register 4.
-Interprets the pointer as the starting address of a message string in the machine’s memory. Prints the message and halts the system using <code>SysHalt()</code> and asserts that the code should not continue.</p>
-<p>line 89~102: (SC_Create):
-Reads a pointer from register 4, which is the filename for a file to be created. Calls <code>SysCreate(filename)</code> to create the file.</p>
-<p>Then writes the return status of the file creation to register 2. Finally, adjusts the program counters to move to the next instruction.</p>
-<p>line 103~123: (SC_Add):
-Reads two integer operands from registers 4 and 5. After calling <code>SysAdd()</code> to compute their sum and stores the result in register 2. Then Adjusts the program counters and prints the result.</p>
-<p>line 128~132: (SC_Exit)
-Reads an exit status from register 4 and prints it. Terminates the current thread by calling <code>kernel-&gt;currentThread-&gt;Finish()</code>.</p>
-<h3 id="userprogksyscallh-syshalt">userprog/ksyscall.h SysHalt</h3>
-<ul>
-<li>goal: signals the OS to stop, shutting down the simulated machine. For example when program finishes execution</li>
-</ul>
-<p>line 17: kernel pointer calls the interrupt member, which calls <code>Halt()</code> member function that shuts down NachOS</p>
-<h3 id="machineinterruptcc-interrupthalt">machine/interrupt.cc Interrupt::Halt()</h3>
-<ul>
-<li>goal: shuts down NachOS cleanly</li>
-</ul>
-<p>line 229: after print out performance statistics, release the memory for kernel object</p>
-<h2 id="tracing-sccreate-system-call">Tracing SC_Create system call</h2>
-<h3 id="%E5%92%8C-kernel-%E4%BA%92%E5%8B%95%E7%9A%84%E6%96%B9%E5%BC%8F">和 Kernel 互動的方式：</h3>
-<p>執行 instruction exception之後，前往 SysCreate()去handle這個exception，sysCreate()就會去呼叫<code>fileSystem</code> 創建檔案並回傳值給<code>exception.cc</code>，在Create()裡面，如果<code>fileDescriptor</code> 是 -1的話那檔案就沒有成功被開啟<code>return FALSE</code>，最後有沒有創建成功會被存到 $v0 裡面，然後處理完這個exception後program counter會向前移。</p>
-<h3 id="userprogexceptioncc-exceptionhandler">userprog/exception.cc ExceptionHandler()</h3>
-<p>Traced before</p>
-<h3 id="userprogksyscallh-syscreate">userprog/ksyscall.h SysCreate()</h3>
-<ul>
-<li>goal: Creates a file in NachOS file system. Return if the kernel has successfully created a file</li>
-</ul>
-<p>See more in <code>Create()</code> to now extra details</p>
-<h3 id="filesysfilesysh-filesystemcreate">filesys/filesys.h FileSystem::Create()</h3>
-<ul>
-<li>goal: create a new file. If fileDescriptor returned -1, it means the file couldn't be created and the function returns false.</li>
-</ul>
-<p>line 57: If the file was opend, close the file using <code>Close</code> after reading and writing are finished</p>
-<h2 id="tracing-scprintint-system-call">Tracing SC_PrintInt system call</h2>
-<h3 id="scprintint-%E5%92%8C-kernel-%E4%BA%92%E5%8B%95%E7%9A%84%E6%96%B9%E5%BC%8F">SC_PrintInt 和 Kernel 互動的方式：</h3>
-<p>一開始從<code> exceptionHandler()</code> 接到 exception 之後，進到SysPrintInt()，經過ksyscall.h進入kernel <code>SynchConsoleOutput::PutInt()</code> 裡面，在PutInt()時將integer轉成char後再PutChar()，同時使用<code>lock</code> 來讓output()可以做好，尤其是multithreaded的環境。
-為了保持interrupt的時序，context switch 沒有問題，用 <code>OneTick</code>來紀錄kernel space的時間，用<code>Schedule()</code>去排程什麼時候進行interrupt，因為Nachos虛擬環境沒有硬體來interrupt，那當造成interrupt的東西ex: I/O 結束後，就會呼叫 <code>callBack()</code>來繼續process執行</p>
-<h3 id="exceptionhandler">ExceptionHandler()</h3>
-<ul>
-<li><strong>Comment:</strong> Reads the number <code>val</code> to be printed from the register.</li>
-<li>Calls <code>SysPrintInt(val)</code> to output the number.</li>
-<li>Advances the PC and returns, ensuring that <code>assert()</code> is not triggered for an unsuccessful return.</li>
-<li><strong>Summary:</strong> In <code>ExceptionHandler()</code>, the part handling <code>SC_PrintInt</code> reads the number to be printed and calls the underlying <code>SysPrintInt</code> function to output the number, then advances the PC.</li>
-</ul>
-<h3 id="ksyscallh-sysprintint">ksyscall.h SysPrintInt()</h3>
-<ul>
-<li>Outputs the current total ticks.</li>
-<li>Calls <code>SynchConsoleOutput::PutInt()</code> from the kernel.</li>
-<li>Outputs the current total ticks again.</li>
-<li><strong>Summary:</strong> <code>SysPrintInt()</code> calls <code>PutInt()</code> and records the time spent (in ticks).</li>
-</ul>
-<h3 id="synchconsoleoutputputint">SynchConsoleOutput::PutInt()</h3>
-<ul>
-<li>Converts the input <code>value</code> into a string <code>str</code>.</li>
-<li>Locks before output to prevent race conditions during multithreading.</li>
-<li>Enters a while loop to output each character of <code>str</code> one by one, calling <code>consoleOutput-&gt;PutChar()</code> each time.</li>
-<li>After <code>PutChar</code>, calls <code>waitFor-&gt;P()</code> to ensure the output sequence is correct.</li>
-<li>Releases the lock after completing the output.</li>
-<li><strong>Summary:</strong> <code>SynchConsoleOutput::PutInt()</code> outputs an integer to the console by converting it to a string and outputting each character one by one, including extensive debug messages to record operation times.</li>
-</ul>
-<h3 id="synchconsoleoutputputchar">SynchConsoleOutput::PutChar()</h3>
-<ul>
-<li>Locks, then calls <code>consoleOutput-&gt;PutChar(ch)</code> to output <code>ch</code>.</li>
-<li>Releases the lock after the output completes.</li>
-<li><strong>Summary:</strong> <code>SynchConsoleOutput::PutChar()</code> outputs a single character.</li>
-</ul>
-<h3 id="consoleoutputputchar">ConsoleOutput::PutChar()</h3>
-<ul>
-<li>Checks if <code>putBusy</code> is true (another <code>put</code> is in progress).</li>
-<li>Writes <code>ch</code> into <code>writeFileNo</code> (the file to which the console outputs).</li>
-<li>Sets <code>putBusy</code> to true to prevent other threads from causing race conditions before the output.</li>
-<li>Delays for a short time (<code>ConsoleTime</code>) before calling <code>interrupt</code> to perform <code>ConsoleWriteInt</code> for output.</li>
-<li><strong>Summary:</strong> <code>consoleOutput-&gt;PutChar()</code> writes the character to <code>writeFileNo</code> for console output and triggers <code>ConsoleWriteInt</code> after a brief delay.</li>
-</ul>
-<h3 id="interruptschedule">Interrupt::Schedule()</h3>
-<ul>
-<li>Calculates the time for the interrupt to trigger and initializes <code>toOccur</code> with <code>toCall</code>, trigger time, and <code>IntType type</code>.</li>
-<li>Excludes cases where <code>fromNow &lt;= 0</code> (cases that are due immediately).</li>
-<li>Adds <code>toOccur</code> to the <code>pending</code> <code>SortedList</code> for future interrupt execution.</li>
-<li><strong>Summary:</strong> <code>Interrupt::Schedule()</code> creates a schedule and adds it to the list for future execution.</li>
-</ul>
-<h3 id="machinerun">Machine::Run()</h3>
-<ul>
-<li>Creates an <code>instr</code> pointer to hold the instruction and switches to User Mode.</li>
-<li>Enters a loop, continuously executing the next instruction (<code>OneInstruction()</code>), recording execution time, and calling <code>OneTick()</code> to simulate time advancement and check for interrupts.</li>
-<li>Calls <code>debugger()</code> if single-step debugging is enabled and the current time reaches the debug interval.</li>
-<li><strong>Summary:</strong> <code>Machine::Run()</code> simulates the system's continuous process of fetching and executing instructions.</li>
-</ul>
-<h3 id="machineonetick">Machine::OneTick()</h3>
-<ul>
-<li>Advances time based on the current mode.</li>
-<li>Disables interrupts and calls <code>CheckIfDue(FALSE)</code> to check and execute pending interrupts. Passing <code>FALSE</code> means it doesn't jump directly to the next interrupt time but gradually advances.</li>
-<li>Re-enables interrupts afterward.</li>
-<li>Performs a context switch if <code>yieldOnReturn</code> is set and restores the mode to the original state (kernel or user mode).</li>
-<li><strong>Summary:</strong> <code>Machine::OneTick()</code> advances time, checks for pending interrupts, gradually progresses without skipping directly to the next interrupt, and performs context switches as needed.</li>
-</ul>
-<h3 id="interruptcheckifdue">Interrupt::CheckIfDue()</h3>
-<ul>
-<li>Asserts that other interrupts are disabled.</li>
-<li>Runs debug checks and returns <code>FALSE</code> if the pending interrupt list is empty.</li>
-<li>Checks the earliest interrupt in the list. If the time hasn't reached, it determines whether to advance the clock. If not, it returns <code>FALSE</code>; if so, it jumps directly to the time.</li>
-<li>Executes <code>DelayedLoad()</code> to update delayed values before entering the kernel trap.</li>
-<li>Enters a handler loop to execute all due interrupts in the pending list, then exits and returns <code>TRUE</code> (as at least one interrupt will execute).</li>
-</ul>
-<h3 id="consoleoutputcallback">ConsoleOutput::CallBack()</h3>
-<ul>
-<li>Debugs, sets <code>putBusy</code> to <code>FALSE</code> (indicating that the current output operation is complete and new outputs can be accepted), and updates the output character count.</li>
-<li>Calls <code>CallBack()</code> for subsequent operations.</li>
-<li><strong>Summary:</strong> <code>ConsoleOutput::CallBack()</code> handles the actions to be performed after output is complete and calls <code>callWhenDone-&gt;CallBack()</code> for further actions.</li>
-</ul>
-<h3 id="synchconsoleoutputcallback">SynchConsoleOutput::CallBack()</h3>
-<ul>
-<li>Outputs debug messages.</li>
-<li>Executes <code>waitFor-&gt;V()</code> to unblock any process waiting on <code>waitFor-&gt;P()</code>.</li>
-<li><strong>Summary:</strong> <code>SynchConsoleOutput::CallBack()</code> handles post-output operations by releasing synchronization locks.</li>
-</ul>
-<h2 id="tracing-makefile-in-codetestmakefile">Tracing Makefile in code/test/MakeFile</h2>
-<ul>
-<li>goal: to understand how testfiles are compiled</li>
-</ul>
-<p>line 115: This variable lists the programs that will be built when you run make. Each program corresponds to a C source file (e.g.add.c for add, halt.c for halt, etc.).</p>
-<pre class="hljs"><code><div>else
-# change this if you create a new test program!
-PROGRAMS = add halt createFile LotOfAdd
-endif
+<p>iterate through all the executable file, execute them in kernel using <code>Exec</code> (trace next!)</p>
+<pre class="hljs"><code><div>void Kernel::ExecAll() {
+    for (int i = 1; i &lt;= execfileNum; i++) {
+        int a = Exec(execfile[i]);
+    }
 </div></code></pre>
-<h3 id="how-does-the-makefile-work">how does the makefile work</h3>
+<p>Call Finish to release thread memory used in <code>Exec(char *name)</code>
+<a href="##Thread::Finish()">Finish</a></p>
+<pre class="hljs"><code><div>    currentThread-&gt;Finish();
+    // Kernel::Exec();
+}
+</div></code></pre>
+<h2 id="kernelexec">Kernel::Exec()</h2>
 <ul>
-<li>
-<p>goal: for building user level programs that can run on MIPS simulator</p>
-</li>
-<li>
-<p>Procedure:</p>
+<li>purpose: Execute the executable file by creating a new thread and allocate address space for the thread</li>
+<li>passed parameters: <code>char *name</code>: the debug name for the created thread</li>
+</ul>
+<p>Create a new thread object within <code>Kernel</code> class</p>
 <ul>
-<li>compile in .coff, then convert into .noff for nachos MIPS simulator</li>
-<li>uses GCC to compile into object files and linking them into final output. Start.o ensures correct startup routine</li>
+<li>t: an array of 10 pointers to <code>Thread</code> objects within <code>Kernel</code> class</li>
 </ul>
-</li>
-<li>
-<p>Variables explanation</p>
-<ul>
-<li>CC, AS, LD: compiler, assembler, and linker commands</li>
-<li>CFLAGS: including include directories and options for compiling</li>
-<li>PROGRAMS: specifies the names of the programs to be built</li>
-</ul>
-</li>
-</ul>
-<h4 id="how-files-are-built">How files are built</h4>
-<p>For example, this is the code block for halt</p>
-<pre class="hljs"><code><div>halt.o: halt.c
-	$(CC) $(CFLAGS) -c halt.c
-halt: halt.o start.o
-	$(LD) $(LDFLAGS) start.o halt.o -o halt.coff
-	$(COFF2NOFF) halt.coff halt
+<pre class="hljs"><code><div>int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
 </div></code></pre>
 <ol>
-<li>halt.o is created by compiling halt.c.</li>
-<li>halt.coff is created by linking halt.o and tart.o.</li>
-<li>halt (the final executable) is created by converting halt.coff to NOFF format.</li>
+<li>set the state of thread object to is executing</li>
+<li>allocate address space for the thread</li>
+<li>call <code>Fork()</code> on the current thread to start running <code>Thread *t</code></li>
 </ol>
-<h2 id="part-ii-implementation-for-syscall">Part II: Implementation for Syscall</h2>
-<p>From code tracing we followed how other system code work and modified these files:</p>
-<ul>
-<li>userprog
-<ul>
-<li>exception.cc</li>
-<li>ksyscall.h</li>
-<li>syscall.h</li>
-</ul>
-</li>
-<li>filesys
-<ul>
-<li>filesys.h</li>
-</ul>
-</li>
-</ul>
-<h3 id="implementation-in-exceptioncc">implementation in exception.cc</h3>
-<p>Finish the code for SC_Open, SC_Write, SC_Read, SC_Close</p>
-<p>For example, the code for <code>SC_Write</code>:</p>
-<pre class="hljs"><code><div>case SC_Write :
-    val = kernel-&gt;machine-&gt;ReadRegister(4);
-    numChar = kernel-&gt;machine-&gt;ReadRegister(5);
-    fileID = kernel-&gt;machine-&gt;ReadRegister(6);
-    {
-        char *buffer = &amp;(kernel-&gt;machine-&gt;mainMemory[val]);
-        status = SysWrite(buffer, numChar, fileID);
-        DEBUG(dbgSys, &quot;SC_Write returning status &quot; &lt;&lt; status &lt;&lt; &quot;\n&quot;);
-        kernel-&gt;machine-&gt;WriteRegister(2, (int)status);
-    }
-    kernel-&gt;machine-&gt;WriteRegister(PrevPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg));
-    kernel-&gt;machine-&gt;WriteRegister(PCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
-    kernel-&gt;machine-&gt;WriteRegister(NextPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
-    return;
-    ASSERTNOTREACHED();
-    break;
+<pre class="hljs"><code><div>    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
 </div></code></pre>
-<p>We get the start of memory from register 4, how many bytes or char we need to write in register 5, and fileID from register 6. After having these values, we call the kernel using <code>Syswrite</code> for operation. Here, the <code>buffer</code> is the pointer to <code>mainMemory</code>. At the end, we advance Program Counter for one word.</p>
-<p>The other example:</p>
-<pre class="hljs"><code><div>case SC_Read :
-    // starting address for user program's memory
-    val = kernel-&gt;machine-&gt;ReadRegister(4);
-    // how many bytes should OS reads
-    numChar = kernel-&gt;machine-&gt;ReadRegister(5);
-    fileID = kernel-&gt;machine-&gt;ReadRegister(6);
-
-    if (val &lt; 0 || numChar &lt; 0 || (val+numChar) &gt; MemorySize) {
-        kernel-&gt;machine-&gt;WriteRegister(2, -1); // return -1 for error
-    } else {
-        // buffer is address to mainmemory
-        char *buffer = &amp;(kernel-&gt;machine-&gt;mainMemory[val]);
-        status = SysRead(buffer, numChar, fileID);
-        DEBUG(dbgSys, &quot;SC_Read returning status &quot; &lt;&lt; status &lt;&lt; &quot;\n&quot;);
-        kernel-&gt;machine-&gt;WriteRegister(2, (int)status);
-    }
-
-    kernel-&gt;machine-&gt;WriteRegister(PrevPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg));
-    kernel-&gt;machine-&gt;WriteRegister(PCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
-    kernel-&gt;machine-&gt;WriteRegister(NextPCReg, kernel-&gt;machine-&gt;ReadRegister(PCReg) + 4);
-
-    return;
-    ASSERTNOTREACHED();
-    break;
+<p>return the <code>threadNum</code> that was created</p>
+<pre class="hljs"><code><div>    return threadNum - 1;
+}
 </div></code></pre>
-<p>Same, we get the needed values from register 4, 5, 6. Afterwards, we check some conditions such as is memory reading in the valid range. After that we invoke <code>SysRead</code> to let kernel do stuff. Then at the end we forward our PC.</p>
+<h2 id="kernelforkexecute">Kernel::ForkExecute()</h2>
 <ul>
-<li>Other system call is implemented in similar ways.</li>
+<li>
+<p>purpose: to execute the forked thread</p>
+</li>
+<li>
+<p>passed parameters:
+<code>Thread *t</code>: the pointer to the thread object</p>
+</li>
 </ul>
-<h3 id="implementation-in-ksyscallh">Implementation in ksyscall.h</h3>
-<p>this is the implementation</p>
+<pre class="hljs"><code><div>void ForkExecute(Thread *t) {
+    if (!t-&gt;space-&gt;Load(t-&gt;getName())) {
+        return;  // executable not found
+    }
+</div></code></pre>
+<p>execute the thread using <a href="#addrspaceexecute">Execute</a></p>
+<pre class="hljs"><code><div>    t-&gt;space-&gt;Execute(t-&gt;getName());
+}
+</div></code></pre>
+<h1 id="1-4-threadsschedulercc">1-4. threads/scheduler.cc</h1>
+<h2 id="schedulerreadytorun">Scheduler::ReadyToRun()</h2>
+<ul>
+<li>purpose: Mark a thread as ready, but not running. Put it on the ready list, for later scheduling onto the CPU.</li>
+<li>passed parameters:
+<code>Thread *thread</code>: the thread pointer that points to the current thread object</li>
+</ul>
+<p>some debug/assertion check</p>
+<pre class="hljs"><code><div>void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName());
+    // cout &lt;&lt; &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName() &lt;&lt; endl ;
+</div></code></pre>
+<p>set the status of current thread to <code>READY</code> and append to ready list</p>
+<ul>
+<li><code>List&lt;Thread *&gt; *Scheduler::readyList</code>: queued ready thread implemented with linked-list</li>
+</ul>
+<pre class="hljs"><code><div>    thread-&gt;setStatus(READY);
+    readyList-&gt;Append(thread);
+}
+</div></code></pre>
+<h2 id="schedulerrun">Scheduler::Run()</h2>
+<ul>
+<li>purpose: Dispatch the CPU to nextThread. Use context switch routine to switch to next thread</li>
+<li>Note: assume current running thread has already changed from running to blocked or ready</li>
+<li>passed parameters:
+<code>Thread *nextThread</code>: thread object to be executed
+<code>bool finishing</code>: is set if the current thread is to be deleted once we're no longer running on its stack</li>
+</ul>
+<p>create a <code>Thread</code> pointer that points to old thread</p>
+<pre class="hljs"><code><div>void Scheduler::Run(Thread *nextThread, bool finishing) {
+    Thread *oldThread = kernel-&gt;currentThread;
+</div></code></pre>
+<p>delete old thread if <code>finishing</code> is set</p>
+<pre class="hljs"><code><div>    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+
+    if (finishing) {  // mark that we need to delete current thread
+        ASSERT(toBeDestroyed == NULL);
+        toBeDestroyed = oldThread;
+    }
+</div></code></pre>
+<p>save the state of user program thread</p>
+<pre class="hljs"><code><div>    if (oldThread-&gt;space != NULL) {  // if this thread is a user program,
+        oldThread-&gt;SaveUserState();  // save the user's CPU registers
+        oldThread-&gt;space-&gt;SaveState(); // save address space data
+    }
+</div></code></pre>
+<p>if <code>oldThread</code> doesn't overflow, do context swtich with <code>nextThread</code></p>
+<pre class="hljs"><code><div>    oldThread-&gt;CheckOverflow();  // check if the old thread
+                                 // had an undetected stack overflow
+
+    kernel-&gt;currentThread = nextThread;  // switch to the next thread
+    nextThread-&gt;setStatus(RUNNING);      // nextThread is now running
+
+    DEBUG(dbgThread, &quot;Switching from: &quot; &lt;&lt; oldThread-&gt;getName() &lt;&lt; &quot; to: &quot; &lt;&lt; nextThread-&gt;getName());
+
+    // This is a machine-dependent assembly language routine defined
+    // in switch.s.  You may have to think
+    // a bit to figure out what happens after this, both from the point
+    // of view of the thread and from the perspective of the &quot;outside world&quot;.
+
+    SWITCH(oldThread, nextThread); // Stop running oldThread, start run nextThread
+</div></code></pre>
+<p>debug messages, interrupt needs to be disabled so saving states of 2 process can be completed</p>
+<pre class="hljs"><code><div>    // we're back, running oldThread
+
+    // interrupts are off when we return from switch!
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Now in thread: &quot; &lt;&lt; oldThread-&gt;getName());
+</div></code></pre>
+<p>destroy the old thread if it has been set <code>finishing</code> is true.
+Otherwise, restore register state and address space state</p>
+<pre class="hljs"><code><div>    CheckToBeDestroyed();  // check if thread we were running
+                           // before this one has finished
+                           // and needs to be cleaned up
+
+    if (oldThread-&gt;space != NULL) {     // if there is an address space
+        oldThread-&gt;RestoreUserState();  // to restore, do it.
+        oldThread-&gt;space-&gt;RestoreState();
+    }
+}
+</div></code></pre>
+<h1 id="answering-questions">Answering questions:</h1>
+<ol>
+<li>
+<p>How does Nachos allocate the memory space for a new thread(process)?
+Ans: <code>Thread::StackAllocate()</code> Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+</li>
+<li>
+<p>How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?</p>
+<ol>
+<li>Nachos uses <code>AddrSpace()</code> to initialize a new space for the thread.</li>
+<li>After thread is in <code>readyList</code> it will call <code>Finish</code> to be scheduled/run</li>
+<li><code>func</code> is <code>ForkExecute()</code> including <code>AddrSpace::Load()</code> and <code>AddrSpace::Execute()</code> which binary code will be load in <code>Main memory</code></li>
+<li>Then, <code>AddrSpace::Execute()</code> will call <code>AddrSpace::InitRegisters()</code> which initializes register and <code>AddrSpace::RestoreState()</code> to restore page table</li>
+</ol>
+</li>
+<li>
+<p>How does Nachos create and manage the page table?</p>
+</li>
+</ol>
+<p>create the page table by dynamically allocate an array with size of <code>NumPhysPages</code> with the below attributes and initialize every page with a loop. Nachos can manage the page table.</p>
+<ul>
+<li>different attributes
+<code>virtualPage</code>: page number in virtual memory
+<code>physicalPage</code>: frame number
+<code>valid</code>: whether page is loaded in physical memory
+<code>use</code>: whether the page has been modified before, for page replacement algorithms
+<code>dirty</code>: check if the page has been write before since loaded from disk</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 0; i &lt; NumPhysPages; i++) {
+        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+</div></code></pre>
+<p>initialize the memory to zero for clean space</p>
+<pre class="hljs"><code><div>    // zero out the entire address space
+    bzero(kernel-&gt;machine-&gt;mainMemory, MemorySize);
+}
+</div></code></pre>
+<ol start="4">
+<li>How does Nachos translate addresses?
+In <code>addrspace.cc</code> we can find
+virtual page number: <code>unsigned int vpn = vaddr / PageSize;</code>
+offset: <code>unsigned int offset = vaddr % PageSize</code>
+page table entry: <code> pte = &amp;pageTable[vpn];</code>
+physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
+</ol>
+<p>Physical Addreess: <code>*paddr = pfn * PageSize + offset;</code></p>
+<ol start="5">
+<li>How Nachos initializes the machine status (registers, etc) before running a thread(process)?</li>
+</ol>
+<p>Initializing a newly created thread includes:</p>
+<ul>
+<li>program counter (PCstate): points to threadroot</li>
+<li>startup program counter (StartupPCState): do some initialization for the thread using ThreadBegin</li>
+<li>Initial program counter (InitialPCState): points to func that's to be executed</li>
+<li>Initial argument state (InitialArgState): points to the argument that passed to func</li>
+<li>When done program counter (WhenDonePCState): points to ThreadFinish for cleanup</li>
+</ul>
+<ol start="6">
+<li>Which object in Nachos acts the role of process control block</li>
+</ol>
+<p><code>class Thread</code> act as process control block. Which has member function like <code>Fork()</code>, <code>Sleep()</code>, <code>Finish()</code>, <code>setStatus()</code>. Which corresponds to create, wait, end.</p>
+<ol start="7">
+<li>When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?</li>
+</ol>
+<p>When we call <code>Kernel::ExecAll()</code>, we will call Kernel::Exec() based on how many user program we and create thread using fork() and allocate stack. Then call <code>schedular-&gt;ReadyToRun(this)</code> add to <code>ReadyList</code></p>
+<h1 id="code-implementation">Code implementation</h1>
+<h3 id="machineh">machine.h</h3>
+<ol>
+<li>added a exception type called MemoryLimException to catch insufficient memory</li>
+</ol>
+<pre class="hljs"><code><div>enum ExceptionType { NoException,            // Everything ok!
+                     SyscallException,       // A program executed a system call.
+                     PageFaultException,     // No valid translation found
+                     ReadOnlyException,      // Write attempted to page marked
+                                             // &quot;read-only&quot;
+                     BusErrorException,      // Translation resulted in an
+                                             // invalid physical address
+                     AddressErrorException,  // Unaligned reference or one that
+                                             // was beyond the end of the
+                                             // address space
+                     OverflowException,      // Integer overflow in add or sub.
+                     IllegalInstrException,  // Unimplemented or reserved instr.
+                    
+                     MemoryLimException,     // added: Insufficient memory
+                     NumExceptionTypes
+};
+</div></code></pre>
+<ol start="2">
+<li>Create data structure for physical memory in <code>kernel.h</code> and <code>kernel.cc</code>
+use bitmap from <code>lib</code></li>
+</ol>
+<p>in <code>bitmap.cc</code>. I implemented the Find function</p>
+<pre class="hljs"><code><div>// find the first bit that's not set
+int Bitmap::Find(int which) {
+    for (int i = 0; i &lt; numBits; i++) {
+        if (!Test(i)) {
+            return i;
+        }
+    }
+    return -1;
+}
+</div></code></pre>
+<p>in <code>kernel.h</code></p>
+<pre class="hljs"><code><div>   Bitmap *FrameBitmap;
+    int get_available_physical_pages();
+    void allocate_and_mark_physical_page();
+    void release_physical_page(int page_n);
+</div></code></pre>
+<p>in <code>Kernel::Initialize()</code> allocate memory for frame table structure</p>
+<pre class="hljs"><code><div>    FrameBitmap = new Bitmap(NumPhysPages);
+</div></code></pre>
+<p>implement member function for FrameBitmap</p>
+<pre class="hljs"><code><div>int Kernel::get_available_physical_pages() {
+    return FrameBitmap-&gt;NumClear();
+}
+
+void Kernel::allocate_and_mark_physical_page() {
+    FrameBitmap-&gt;FindAndSet();
+}
+
+void Kernel::release_physical_page(int pageNumber) {
+    FrameBitmap-&gt;Clear(pageNumber);
+}
+</div></code></pre>
+<ol start="3">
+<li>set up <code>valid</code>, <code>readOnly</code>, <code>use</code> and <code>dirty</code> fields for your page table</li>
+</ol>
 <pre class="hljs"><code><div>
-OpenFileId SysOpen(char *name)
-{
-    DEBUG(dbgSys, &quot;In ksyscall.h:OpenFileId, into fileSystem-&gt;OpenAFile, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
-    return kernel-&gt;fileSystem-&gt;OpenAFile(name);
-    DEBUG(dbgTraCode, &quot;return from ksyscall.h:OpenFileId, into fileSystem-&gt;OpenAFile, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
-}
-
-int SysWrite(char *buffer, int size, OpenFileId id)
-{
-	return kernel-&gt;fileSystem-&gt;WriteFile(buffer, size, id);
-}
-
-int SysRead(char *buffer, int size, OpenFileId id)
-{
-    return kernel-&gt;fileSystem-&gt;ReadFile(buffer, size, id);
-}
-
-int SysClose(OpenFileId id)
-{
-	return kernel-&gt;fileSystem-&gt;CloseFile(id);
-}
-
 </div></code></pre>
-<p>We invoke kernel level functions to deal with system call. These function are all inside <code>fileSystem</code> class.</p>
-<h3 id="implementation-of-filesysh">Implementation of filesys.h</h3>
-<ul>
-<li>Explanation of variables</li>
-</ul>
-<p><code>OpenFileTable</code> is where the <code>OpenFileId</code> are stored</p>
-<pre class="hljs"><code><div>FileSystem() {
-    for (int i = 0; i &lt; 20; i++) OpenFileTable[i] = NULL;
-}
-</div></code></pre>
-<ul>
-<li>Implementation for <code>OpenAFile</code></li>
-</ul>
-<pre class="hljs"><code><div> OpenFileId OpenAFile(char *name) {
-        // find available slot in openFileTable
-        for (OpenFileId id = 0; id &lt; MAX_OPEN_FILES; id++) {
-            if (OpenFileTable[id] == NULL) {
-                int fileDescriptor = OpenForReadWrite(name, FALSE);
-                if (fileDescriptor == -1) {
-                    // can't open a file
-                    return -1;
-                }
-                OpenFileTable[id] = new OpenFile(fileDescriptor);
-                return id;
-            }
-        }
-        // no availble slot
-        return -1;
-    }
-</div></code></pre>
-<p>Firstly, iterate through <code>openFileTable</code> and find a spot, if there's no spot we return -1. Else, we create a new File object and store inside <code>OpenFileTable</code>.</p>
-<p>The <code>OpenForReadWrite</code> will return the state of file opening after opening a file. If we can't open a file then also return -1.</p>
-<ul>
-<li>Implementation for <code>WriteFile</code></li>
-</ul>
-<pre class="hljs"><code><div>    int WriteFile(char *buffer, int size, OpenFileId id){
-        if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-            // is not valid ID
-            return -1;
-        }
-        int bytesWritten = OpenFileTable[id]-&gt;Write(buffer, size);
-
-        if (bytesWritten &lt; 0) {
-            return -1;
-        }
-	    return bytesWritten;
-    }
-</div></code></pre>
-<p>for writing file, we point to our OpenFileTable[id] and use <code>Write</code> to write data into the mainMemory. It will how many bytes have be written. If it's the value smaller than 0 it means write fail, so return -1.</p>
-<ul>
-<li>Implementation for <code>ReadFile</code></li>
-</ul>
-<pre class="hljs"><code><div>    int ReadFile(char *buffer, int size, OpenFileId id){
-        if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-            // is not valid ID
-            return -1;
-        }
-        int bytesRead = OpenFileTable[id]-&gt;Read(buffer, size);
-        if (bytesRead &lt; 0) {
-            return -1;
-        }
-        return bytesRead;
-    }
-</div></code></pre>
-<p>Similar to <code>WriteFile</code> but instead using <code>Write</code> we <code>Read</code> from the main memory.</p>
-<ul>
-<li>Implementation for <code>CloseFile</code></li>
-</ul>
-<pre class="hljs"><code><div>int CloseFile(OpenFileId id){
-    if (id &lt; 0 || id &gt;= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-        // is not valid ID
-        return -1;
-    }
-    delete OpenFileTable[id];
-    OpenFileTable[id] = NULL;
-    return 1; // delete successful
-}
-</div></code></pre>
-<p>We simply release the File object and return 1 when delete is successful.</p>
-<h3 id="implementation-of-syscallh">Implementation of syscall.h</h3>
-<pre class="hljs"><code><div>#define SC_Open	6
-#define SC_Read	7
-#define SC_Write	8
-#define SC_Seek 9
-#define SC_Close	10
-</div></code></pre>
-<p>Here, we uncomment the system call number so exception could be caught when system call is being raise when running MIPS instructions.</p>
-<h3 id="what-difficulties-did-you-encounter-when-implementing-this-assignment">What difficulties did you encounter when implementing this assignment?</h3>
-<ol>
-<li>Didn't know which files to modify. Especially I haven't done anything related to system before, so it took me a lot of time to understand each components.</li>
-</ol>
-<h3 id="any-feedback-you-would-like-to-let-us-know">Any feedback you would like to let us know.</h3>
-<ol>
-<li>Thank you for preparing this homework TA and Prof. Chou.</li>
-</ol>
 
 </body>
 </html>

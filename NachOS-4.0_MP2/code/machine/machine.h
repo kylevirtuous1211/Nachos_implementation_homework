@@ -52,7 +52,8 @@ enum ExceptionType { NoException,            // Everything ok!
                                              // address space
                      OverflowException,      // Integer overflow in add or sub.
                      IllegalInstrException,  // Unimplemented or reserved instr.
-
+                    
+                     MemoryLimitException,     // added: Insufficient memory
                      NumExceptionTypes
 };
 

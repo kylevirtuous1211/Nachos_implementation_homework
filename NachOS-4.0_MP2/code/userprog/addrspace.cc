@@ -16,6 +16,7 @@
 // of liability and disclaimer of warranty provisions.
 
 #include "addrspace.h"
+#include <cstring>    // For memset
 
 #include "copyright.h"
 #include "machine.h"
@@ -54,27 +55,28 @@ SwapHeader(NoffHeader *noffH) {
 #endif
 }
 
+
 //----------------------------------------------------------------------
-// pace::AddrSAddrSpace
+// AddrSpace::AddrSpace
 // 	Create an address space to run a user program.
 //	Set up the translation from program memory to physical
 //	memory.  For now, this is really simple (1:1), since we are
 //	only uniprogramming, and we have a single unsegmented page table
 //----------------------------------------------------------------------
 
-AddrSpace::AddrSpace() {
-    pageTable = new TranslationEntry[NumPhysPages];
-    for (int i = 0; i < NumPhysPages; i++) {
-        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
-        pageTable[i].physicalPage = i;
-        pageTable[i].valid = TRUE;
-        pageTable[i].use = FALSE;
-        pageTable[i].dirty = FALSE;
-        pageTable[i].readOnly = FALSE;
-    }
-
-    // zero out the entire address space
-    bzero(kernel->machine->mainMemory, MemorySize);
+AddrSpace::AddrSpace() : pageTable(NULL), numPages(0) {
+    NULL;
+    // pageTable = new TranslationEntry[NumPhysPages];
+    // for (int i = 0; i < NumPhysPages; i++) {
+    //     pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+    //     pageTable[i].physicalPage = i;
+    //     pageTable[i].valid = TRUE;
+    //     pageTable[i].use = FALSE;
+    //     pageTable[i].dirty = FALSE;
+    //     pageTable[i].readOnly = FALSE;
+    // }
+    // // zero out the entire address space
+    // bzero(kernel->machine->mainMemory, MemorySize);
 }
 
 //----------------------------------------------------------------------
@@ -83,7 +85,13 @@ AddrSpace::AddrSpace() {
 //----------------------------------------------------------------------
 
 AddrSpace::~AddrSpace() {
-    delete pageTable;
+    for (unsigned int i = 0; i < numPages; i++) {
+        if (pageTable[i].valid) {
+            std::lock_guard<std::mutex> lock(frame_mutex);
+            available_frame.Clear(pageTable[i].physicalPage);
+        }
+    }
+    delete[] pageTable;
 }
 
 //----------------------------------------------------------------------
@@ -113,55 +121,122 @@ bool AddrSpace::Load(char *fileName) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
 #ifdef RDATA
-    // how big is address space?
     size = noffH.code.size + noffH.readonlyData.size + noffH.initData.size +
            noffH.uninitData.size + UserStackSize;
-    // we need to increase the size
-    // to leave room for the stack
 #else
-    // how big is address space?
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size + UserStackSize;  // we need to increase the size
-                                                                                           // to leave room for the stack
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size + UserStackSize;
 #endif
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);  // check we're not trying
-                                       // to run anything too big --
-                                       // at least until we have
-                                       // virtual memory
+    // Remove the assertion to allow total virtual memory to exceed physical memory
+    // ASSERT(numPages <= NumPhysPages);
 
-    DEBUG(dbgAddr, "Initializing address space: " << numPages << ", " << size);
-
-    // then, copy in the code and data segments into memory
-    // Note: this code assumes that virtual address = physical address
-    if (noffH.code.size > 0) {
-        DEBUG(dbgAddr, "Initializing code segment.");
-        DEBUG(dbgAddr, noffH.code.virtualAddr << ", " << noffH.code.size);
-        executable->ReadAt(
-            &(kernel->machine->mainMemory[noffH.code.virtualAddr]),
-            noffH.code.size, noffH.code.inFileAddr);
+    pageTable = new TranslationEntry[numPages];
+    if (pageTable == NULL) {
+        delete executable;
+        return FALSE;
     }
+
+    DEBUG(dbgAddr, "Initializing address space: " << numPages << " pages, " << size << " bytes.");
+
+    // Initialize page table entries with virtual page numbers
+    for (unsigned int i = 0; i < numPages; i++) {
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = -1;  // Physical page not assigned yet
+        pageTable[i].valid = FALSE;      // Not loaded into memory yet
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+
+    // Load segments into memory
+    if (!LoadSegments(executable, noffH)) {
+        delete[] pageTable;
+        delete executable;
+        return FALSE;
+    }
+
+    delete executable;  // Close the executable file
+    return TRUE;        // Loading successful
+}
+
+bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &noffH) {
+    unsigned int currVPN = 0;
+
+    // Load code segment
+    if (noffH.code.size > 0) {
+        if (!LoadSegment(executable, noffH.code, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.code.size, PageSize);
+    }
+
+    // Load initialized data segment
     if (noffH.initData.size > 0) {
-        DEBUG(dbgAddr, "Initializing data segment.");
-        DEBUG(dbgAddr, noffH.initData.virtualAddr << ", " << noffH.initData.size);
-        executable->ReadAt(
-            &(kernel->machine->mainMemory[noffH.initData.virtualAddr]),
-            noffH.initData.size, noffH.initData.inFileAddr);
+        if (!LoadSegment(executable, noffH.initData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.initData.size, PageSize);
     }
 
 #ifdef RDATA
+    // Load read-only data segment
     if (noffH.readonlyData.size > 0) {
-        DEBUG(dbgAddr, "Initializing read only data segment.");
-        DEBUG(dbgAddr, noffH.readonlyData.virtualAddr << ", " << noffH.readonlyData.size);
-        executable->ReadAt(
-            &(kernel->machine->mainMemory[noffH.readonlyData.virtualAddr]),
-            noffH.readonlyData.size, noffH.readonlyData.inFileAddr);
+        if (!LoadSegment(executable, noffH.readonlyData, currVPN, TRUE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.readonlyData.size, PageSize);
     }
 #endif
 
-    delete executable;  // close file
-    return TRUE;        // success
+    return TRUE;
+}
+
+bool AddrSpace::LoadSegment(OpenFile *executable, Segment &segment, unsigned int startVPN, bool readOnly) {
+    unsigned int numPages = divRoundUp(segment.size, PageSize);
+
+    for (unsigned int i = 0; i < numPages; i++) {
+        unsigned int vpn = startVPN + i;
+
+        // Allocate a physical frame
+        int pageid;
+        {
+            std::lock_guard<std::mutex> lock(frame_mutex);
+            pageid = available_frame.FindAndSet();
+        }
+        if (pageid == -1) {
+            cerr << "No free frames available for allocation.\n";
+            kernel->interrupt->setStatus(SystemMode);
+            ExceptionHandler(MemoryLimitException);
+            kernel->interrupt->setStatus(UserMode);
+        }
+
+        // Update page table entry
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = readOnly;
+
+        // Zero out the physical page
+        bzero(kernel->machine->mainMemory + pageid * PageSize, PageSize);
+
+        // Calculate the physical address
+        unsigned int paddr = pageid * PageSize;
+
+        // Read the segment data into memory
+        unsigned int readSize = PageSize;
+        unsigned int remainingSize = segment.size - i * PageSize;
+        if (remainingSize < PageSize) {
+            readSize = remainingSize;
+        }
+
+        executable->ReadAt(
+            kernel->machine->mainMemory + paddr,
+            readSize,
+            segment.inFileAddr + i * PageSize);
+    }
+
+    return TRUE;
 }
 
 //----------------------------------------------------------------------
