@@ -23,6 +23,8 @@
 #include "main.h"
 #include "noff.h"
 
+Bitmap available_frame(NumPhysPages);
+
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the
@@ -87,7 +89,6 @@ AddrSpace::AddrSpace() : pageTable(NULL), numPages(0) {
 AddrSpace::~AddrSpace() {
     for (unsigned int i = 0; i < numPages; i++) {
         if (pageTable[i].valid) {
-            std::lock_guard<std::mutex> lock(frame_mutex);
             available_frame.Clear(pageTable[i].physicalPage);
         }
     }
@@ -138,7 +139,7 @@ bool AddrSpace::Load(char *fileName) {
         return FALSE;
     }
 
-    DEBUG(dbgAddr, "Initializing address space: " << numPages << " pages, " << size << " bytes.");
+    DEBUG(dbgAddr, "Initializing address space: "<< *fileName << " " << numPages << " pages, " << size << " bytes.");
 
     // Initialize page table entries with virtual page numbers
     for (unsigned int i = 0; i < numPages; i++) {
@@ -167,6 +168,7 @@ bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &noffH) {
     // Load code segment
     if (noffH.code.size > 0) {
         if (!LoadSegment(executable, noffH.code, currVPN, FALSE)) {
+            // **Handle failure by propagating FALSE**
             return FALSE;
         }
         currVPN += divRoundUp(noffH.code.size, PageSize);
@@ -175,6 +177,7 @@ bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &noffH) {
     // Load initialized data segment
     if (noffH.initData.size > 0) {
         if (!LoadSegment(executable, noffH.initData, currVPN, FALSE)) {
+            // **Handle failure by propagating FALSE**
             return FALSE;
         }
         currVPN += divRoundUp(noffH.initData.size, PageSize);
@@ -184,11 +187,46 @@ bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &noffH) {
     // Load read-only data segment
     if (noffH.readonlyData.size > 0) {
         if (!LoadSegment(executable, noffH.readonlyData, currVPN, TRUE)) {
+            // **Handle failure by propagating FALSE**
             return FALSE;
         }
         currVPN += divRoundUp(noffH.readonlyData.size, PageSize);
     }
 #endif
+
+    // **Load uninitialized data segment**
+    if (noffH.uninitData.size > 0) {
+        if (!LoadSegment(executable, noffH.uninitData, currVPN, FALSE)) {
+            // **Handle failure by propagating FALSE**
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.uninitData.size, PageSize);
+    }
+
+    // **Allocate stack pages**
+    unsigned int stackPages = divRoundUp(UserStackSize, PageSize);
+    for (unsigned int i = 0; i < stackPages; i++) {
+        unsigned int vpn = currVPN + i;
+        int pageid = available_frame.FindAndSet();
+        if (pageid == -1) {
+            kernel->interrupt->setStatus(SystemMode);
+            ExceptionHandler(MemoryLimitException);
+            kernel->interrupt->setStatus(UserMode);
+            cerr << "No free frames available for stack allocation.\n";
+            return FALSE;
+        }
+
+        pageTable[vpn].virtualPage = vpn;
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = FALSE;
+        pageTable[vpn].use = FALSE;
+        pageTable[vpn].dirty = FALSE;
+
+        // Zero out the stack page
+        bzero(kernel->machine->mainMemory + pageid * PageSize, PageSize);
+    }
+    currVPN += stackPages;
 
     return TRUE;
 }
@@ -202,14 +240,23 @@ bool AddrSpace::LoadSegment(OpenFile *executable, Segment &segment, unsigned int
         // Allocate a physical frame
         int pageid;
         {
-            std::lock_guard<std::mutex> lock(frame_mutex);
             pageid = available_frame.FindAndSet();
+            DEBUG(98, "Allocated frame " << pageid);
         }
         if (pageid == -1) {
             cerr << "No free frames available for allocation.\n";
+            
+            // Switch to System Mode before handling the exception
             kernel->interrupt->setStatus(SystemMode);
+            
+            // Trigger MemoryLimitException (assuming MemoryLimitException is defined as exception code 8)
             ExceptionHandler(MemoryLimitException);
+            
+            // Switch back to User Mode after handling the exception
             kernel->interrupt->setStatus(UserMode);
+            
+            // **Important:** Return FALSE to propagate the failure up the call stack
+            return FALSE;
         }
 
         // Update page table entry

@@ -972,24 +972,75 @@ Otherwise, restore register state and address space state</p>
 </div></code></pre>
 <h1 id="answering-questions">Answering questions:</h1>
 <ol>
+<li>How does Nachos allocate the memory space for a new thread(process)?</li>
+</ol>
+<p>Ans: In main function calls <code>Kernel::ExecAll()</code> function that runs all the executable file. In <code>Kernel::Exec</code>, new Thread object is being created</p>
+<pre class="hljs"><code><div>    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+</div></code></pre>
+<p>So the virtual space and physical space mapping is done by dynamic allocating a new <code>AddrSpace()</code> While in <code>Thread::Fork()</code>, <code>Thread::StackAllocate()</code> the system allocates and initializes an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+<ol start="2">
+<li>How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?</li>
+</ol>
+<p>Inside Kernel::Exec(char *name)</p>
+<pre class="hljs"><code><div>int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+</div></code></pre>
+<ol>
 <li>
-<p>How does Nachos allocate the memory space for a new thread(process)?
-Ans: <code>Thread::StackAllocate()</code> Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+<p>Nachos uses <code>AddrSpace()</code> to initialize a new space for the thread.</p>
 </li>
 <li>
-<p>How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?</p>
-<ol>
-<li>Nachos uses <code>AddrSpace()</code> to initialize a new space for the thread.</li>
-<li>After thread is in <code>readyList</code> it will call <code>Finish</code> to be scheduled/run</li>
-<li><code>func</code> is <code>ForkExecute()</code> including <code>AddrSpace::Load()</code> and <code>AddrSpace::Execute()</code> which binary code will be load in <code>Main memory</code></li>
-<li>Then, <code>AddrSpace::Execute()</code> will call <code>AddrSpace::InitRegisters()</code> which initializes register and <code>AddrSpace::RestoreState()</code> to restore page table</li>
+<p>Then <code>t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;</code> loads binary inside the virtual table and physical space. While calls <code>StackAllocate</code> which allocates space for <code>this-&gt;InitRegisters()</code> and <code>this-&gt;RestoreState()</code></p>
+</li>
 </ol>
+<pre class="hljs"><code><div>void Thread::Fork(VoidFunctionPtr func, void *arg) {
+    Interrupt *interrupt = kernel-&gt;interrupt;
+    Scheduler *scheduler = kernel-&gt;scheduler;
+    IntStatus oldLevel;
+
+    DEBUG(dbgThread, &quot;Forking thread: &quot; &lt;&lt; name &lt;&lt; &quot; f(a): &quot; &lt;&lt; (int)func &lt;&lt; &quot; &quot; &lt;&lt; arg);
+    StackAllocate(func, arg);
+
+    oldLevel = interrupt-&gt;SetLevel(IntOff);
+    scheduler-&gt;ReadyToRun(this);  // ReadyToRun assumes that interrupts
+                                  // are disabled!
+    (void)interrupt-&gt;SetLevel(oldLevel);
+}
+</div></code></pre>
+<pre class="hljs"><code><div>void AddrSpace::Execute(char *fileName) {
+    kernel-&gt;currentThread-&gt;space = this;
+
+    this-&gt;InitRegisters();  // set the initial register values
+    this-&gt;RestoreState();   // load page table register
+
+    kernel-&gt;machine-&gt;Run();  // jump to the user progam
+
+    ASSERTNOTREACHED();  // machine-&gt;Run never returns;
+                         // the address space exits
+                         // by doing the syscall &quot;exit&quot;
+}
+</div></code></pre>
+<ol start="3">
+<li>
+<p>When <code>Thread::Fork()</code> is called, thread will be added in <code>readyList</code> it will be scheduled to run when ``Thread::Yield()<code>is called at</code>Interrupt::OneTick()<code>Then when</code>Schedular::FindNextToRun<code>is called at either</code>Thread::Sleep()<code>or</code>Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.</p>
 </li>
 <li>
 <p>How does Nachos create and manage the page table?</p>
 </li>
 </ol>
-<p>create the page table by dynamically allocate an array with size of <code>NumPhysPages</code> with the below attributes and initialize every page with a loop. Nachos can manage the page table.</p>
+<p>create the page table by dynamically allocate an array with size of the executable file. Then, we load data page by page while setting the below attributes.</p>
 <ul>
 <li>different attributes
 <code>virtualPage</code>: page number in virtual memory
@@ -1007,24 +1058,28 @@ Ans: <code>Thread::StackAllocate()</code> Allocate and initialize an execution s
         pageTable[i].readOnly = FALSE;
     }
 </div></code></pre>
-<p>initialize the memory to zero for clean space</p>
-<pre class="hljs"><code><div>    // zero out the entire address space
-    bzero(kernel-&gt;machine-&gt;mainMemory, MemorySize);
+<p>initialize the physical memory to zero for clean space to put page data.</p>
+<pre class="hljs"><code><div>// zero out the entire address space
+    bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
 }
 </div></code></pre>
 <ol start="4">
-<li>How does Nachos translate addresses?
-In <code>addrspace.cc</code> we can find
-virtual page number: <code>unsigned int vpn = vaddr / PageSize;</code>
-offset: <code>unsigned int offset = vaddr % PageSize</code>
-page table entry: <code> pte = &amp;pageTable[vpn];</code>
-physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
+<li>How does Nachos translate addresses?</li>
+</ol>
+<p>In <code>AddrSpace::Translate</code> we can find the following formulas, thus knowing how Nachos translate addreesses</p>
+<ol>
+<li>virtual page number: <code>unsigned int vpn = vaddr / PageSize;</code></li>
+<li>offset: <code>unsigned int offset = vaddr % PageSize</code></li>
+<li>page table entry: <code> pte = &amp;pageTable[vpn];</code></li>
+<li>physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
 </ol>
 <p>Physical Addreess: <code>*paddr = pfn * PageSize + offset;</code></p>
 <ol start="5">
 <li>How Nachos initializes the machine status (registers, etc) before running a thread(process)?</li>
 </ol>
-<p>Initializing a newly created thread includes:</p>
+<p>At <code>Thread::Fork()</code> it calls <code>StackAllocate(func, arg)</code></p>
+<p><code>func</code> includes calling <code>InitRegisters()</code> and <code>RestoreState()</code> which also sets up registers.</p>
+<p>In <code>StackAllocate()</code> it sets up these information</p>
 <ul>
 <li>program counter (PCstate): points to threadroot</li>
 <li>startup program counter (StartupPCState): do some initialization for the thread using ThreadBegin</li>
@@ -1032,14 +1087,33 @@ physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
 <li>Initial argument state (InitialArgState): points to the argument that passed to func</li>
 <li>When done program counter (WhenDonePCState): points to ThreadFinish for cleanup</li>
 </ul>
+<p>After setting up the machine status, CPU(mips simulator) can fetch instructions and run.</p>
 <ol start="6">
 <li>Which object in Nachos acts the role of process control block</li>
 </ol>
-<p><code>class Thread</code> act as process control block. Which has member function like <code>Fork()</code>, <code>Sleep()</code>, <code>Finish()</code>, <code>setStatus()</code>. Which corresponds to create, wait, end.</p>
+<p>In thread.h we can find these:</p>
+<p>class Thread` act as process control block. Which has  thread states like</p>
+<pre class="hljs"><code><div>// Thread state
+enum ThreadStatus { JUST_CREATED,
+                    RUNNING,
+                    READY,
+                    BLOCKED,
+                    ZOMBIE };
+</div></code></pre>
+<p>`. Which corresponds to create, run, wait, end like the process control block.</p>
 <ol start="7">
 <li>When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?</li>
 </ol>
-<p>When we call <code>Kernel::ExecAll()</code>, we will call Kernel::Exec() based on how many user program we and create thread using fork() and allocate stack. Then call <code>schedular-&gt;ReadyToRun(this)</code> add to <code>ReadyList</code></p>
+<p>When <code>Thread::Fork()</code> is called, thread will be added in <code>readyList</code> it will be scheduled to run when ``Thread::Yield()<code>is called at</code>Interrupt::OneTick()<code>Then when</code>Schedular::FindNextToRun<code>is called at either</code>Thread::Sleep()<code>or</code>Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.</p>
+<pre class="hljs"><code><div>void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName());
+    // cout &lt;&lt; &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName() &lt;&lt; endl ;
+    thread-&gt;setStatus(READY);
+    readyList-&gt;Append(thread);
+}
+</div></code></pre>
+<p>When we call <code>Kernel::ExecAll()</code>, we will call Kernel::Exec() based on how many user program we and create thread using <code>fork()</code> and allocate stack. Then call <code>schedular-&gt;ReadyToRun(this)</code> add to <code>ReadyList</code></p>
 <h1 id="code-implementation">Code implementation</h1>
 <h3 id="machineh">machine.h</h3>
 <ol>
@@ -1063,47 +1137,166 @@ physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
 };
 </div></code></pre>
 <ol start="2">
-<li>Create data structure for physical memory in <code>kernel.h</code> and <code>kernel.cc</code>
-use bitmap from <code>lib</code></li>
+<li>created a bitmap to check the unallocated space in <code>mainMemory</code></li>
 </ol>
-<p>in <code>bitmap.cc</code>. I implemented the Find function</p>
-<pre class="hljs"><code><div>// find the first bit that's not set
-int Bitmap::Find(int which) {
-    for (int i = 0; i &lt; numBits; i++) {
-        if (!Test(i)) {
-            return i;
+<p>In <code>addrspace.h</code></p>
+<p>Create a bitmap for knowing which frame has been used</p>
+<pre class="hljs"><code><div>extern Bitmap available_frame;    // Frame allocation bitmap
+</div></code></pre>
+<p>helper functions to help loading segments into <code>mainMemory</code></p>
+<pre class="hljs"><code><div>    bool LoadSegment(OpenFile *executable, Segment &amp;segment, unsigned int startVPN, bool readOnly);
+    bool LoadSegments(OpenFile *executable, NoffHeader &amp;noffH);
+
+</div></code></pre>
+<p>In <code>addrspace.cc</code></p>
+<p>deallocating the frames one by one on <code>pageTable</code></p>
+<pre class="hljs"><code><div>AddrSpace::~AddrSpace() {
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        if (pageTable[i].valid) {
+            available_frame.Clear(pageTable[i].physicalPage);
         }
     }
-    return -1;
+    delete[] pageTable;
 }
 </div></code></pre>
-<p>in <code>kernel.h</code></p>
-<pre class="hljs"><code><div>   Bitmap *FrameBitmap;
-    int get_available_physical_pages();
-    void allocate_and_mark_physical_page();
-    void release_physical_page(int page_n);
-</div></code></pre>
-<p>in <code>Kernel::Initialize()</code> allocate memory for frame table structure</p>
-<pre class="hljs"><code><div>    FrameBitmap = new Bitmap(NumPhysPages);
-</div></code></pre>
-<p>implement member function for FrameBitmap</p>
-<pre class="hljs"><code><div>int Kernel::get_available_physical_pages() {
-    return FrameBitmap-&gt;NumClear();
-}
+<p>In <code>addrspace::Load()</code>
+initialize the page table and call <code>LoadSegments(executable, noffH)</code></p>
+<pre class="hljs"><code><div>// checking total size stuff
 
-void Kernel::allocate_and_mark_physical_page() {
-    FrameBitmap-&gt;FindAndSet();
-}
+    // Initialize page table entries with virtual page numbers
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = -1;  // Physical page not assigned yet
+        pageTable[i].valid = FALSE;      // Not loaded into memory yet
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
 
-void Kernel::release_physical_page(int pageNumber) {
-    FrameBitmap-&gt;Clear(pageNumber);
+    // Load segments into memory
+    if (!LoadSegments(executable, noffH)) {
+        delete[] pageTable;
+        delete executable;
+        return FALSE;
+    }
+
+    delete executable;  // Close the executable file
+    return TRUE;        // Loading successful
 }
 </div></code></pre>
-<ol start="3">
-<li>set up <code>valid</code>, <code>readOnly</code>, <code>use</code> and <code>dirty</code> fields for your page table</li>
-</ol>
+<p>In <code>LoadSegments</code> we load <code>noffH.code</code> <code>noffH.initData</code> <code>noffH.readonlyData</code> <code>noffH.uninitData</code> and <code>UserStack</code></p>
+<pre class="hljs"><code><div>bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &amp;noffH) {
+    unsigned int currVPN = 0;
+
+    // Load code segment
+    if (noffH.code.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.code, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.code.size, PageSize);
+    }
+
+    // Load initialized data segment
+    if (noffH.initData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.initData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.initData.size, PageSize);
+    }
+
+#ifdef RDATA
+    // Load read-only data segment
+    if (noffH.readonlyData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.readonlyData, currVPN, TRUE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.readonlyData.size, PageSize);
+    }
+#endif
+
+    // **Load uninitialized data segment**
+    if (noffH.uninitData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.uninitData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.uninitData.size, PageSize);
+    }
+</div></code></pre>
+<p>We have to initialize the pageTable because when we were counting the <code>size</code> of executable file the stack is not included</p>
 <pre class="hljs"><code><div>
+    // **Allocate stack pages**
+    unsigned int stackPages = divRoundUp(UserStackSize, PageSize);
+    for (unsigned int i = 0; i &lt; stackPages; i++) {
+        unsigned int vpn = currVPN + i;
+        int pageid = available_frame.FindAndSet();
+        if (pageid == -1) {
+            cerr &lt;&lt; &quot;No free frames available for stack allocation.\n&quot;;
+            return FALSE;
+        }
+
+        pageTable[vpn].virtualPage = vpn;
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = FALSE;
+        pageTable[vpn].use = FALSE;
+        pageTable[vpn].dirty = FALSE;
+
+        // Zero out the stack page
+        bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
+    }
+    currVPN += stackPages;
+
+    return TRUE;
+}
 </div></code></pre>
+<p>Then we just load the segment to mainMemory. Firstly, use <code>Bitmap::FindAndSet()</code> to check if there is availabe frame. Then, zero out physical page and read segment data into memory</p>
+<pre class="hljs"><code><div>bool AddrSpace::LoadSegment(OpenFile *executable, Segment &amp;segment, unsigned int startVPN, bool readOnly) {
+    unsigned int numPages = divRoundUp(segment.size, PageSize);
+
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        unsigned int vpn = startVPN + i;
+
+        // Allocate a physical frame
+        int pageid;
+        {
+            pageid = available_frame.FindAndSet();
+            DEBUG(98, &quot;Allocated frame &quot; &lt;&lt; pageid);
+        }
+        if (pageid == -1) {
+            cerr &lt;&lt; &quot;No free frames available for allocation.\n&quot;;
+            kernel-&gt;interrupt-&gt;setStatus(SystemMode);
+            ExceptionHandler(MemoryLimitException);
+            kernel-&gt;interrupt-&gt;setStatus(UserMode);
+        }
+
+        // Update page table entry
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = readOnly;
+
+        // Zero out the physical page
+        bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
+
+        // Calculate the physical address
+        unsigned int paddr = pageid * PageSize;
+
+        // Read the segment data into memory
+        unsigned int readSize = PageSize;
+        unsigned int remainingSize = segment.size - i * PageSize;
+        if (remainingSize &lt; PageSize) {
+            readSize = remainingSize;
+        }
+
+        executable-&gt;ReadAt(
+            kernel-&gt;machine-&gt;mainMemory + paddr,
+            readSize,
+            segment.inFileAddr + i * PageSize);
+    }
+
+    return TRUE;
+}
+</div></code></pre>
+<p>End of code explanation.</p>
 
 </body>
 </html>

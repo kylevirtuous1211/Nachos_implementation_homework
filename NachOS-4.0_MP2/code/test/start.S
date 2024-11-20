@@ -193,7 +193,6 @@ Close:
         syscall
         j       $31
         .end Close
-*/
 
 /* dummy function to keep gcc happy */
         .globl  __main

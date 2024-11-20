@@ -672,42 +672,69 @@ create the page table by dynamically allocate an array with size of the executab
         pageTable[i].readOnly = FALSE;
     }
 ```
-initialize the memory to zero for clean space
+initialize the physical memory to zero for clean space to put page data.
 ```
 // zero out the entire address space
-    bzero(kernel->machine->mainMemory, PageSize);
+    bzero(kernel->machine->mainMemory + pageid * PageSize, PageSize);
 }
 ```
 4. How does Nachos translate addresses?
-In `addrspace.cc` we can find
-virtual page number: `unsigned int vpn = vaddr / PageSize;`
-offset: `unsigned int offset = vaddr % PageSize`
-page table entry: ` pte = &pageTable[vpn];`
-physical frame number: `pfn = pte->physicalPage;`
+
+In `AddrSpace::Translate` we can find the following formulas, thus knowing how Nachos translate addreesses
+
+1. virtual page number: `unsigned int vpn = vaddr / PageSize;`
+2. offset: `unsigned int offset = vaddr % PageSize`
+3. page table entry: ` pte = &pageTable[vpn];`
+4. physical frame number: `pfn = pte->physicalPage;`
 
 Physical Addreess: `*paddr = pfn * PageSize + offset;`
 
 5. How Nachos initializes the machine status (registers, etc) before running a thread(process)?
 
-Initializing a newly created thread includes:
+At `Thread::Fork()` it calls `StackAllocate(func, arg)`
+
+`func` includes calling `InitRegisters()` and `RestoreState()` which also sets up registers.
+
+In `StackAllocate()` it sets up these information
+
 * program counter (PCstate): points to threadroot
 * startup program counter (StartupPCState): do some initialization for the thread using ThreadBegin
 * Initial program counter (InitialPCState): points to func that's to be executed
 * Initial argument state (InitialArgState): points to the argument that passed to func
 * When done program counter (WhenDonePCState): points to ThreadFinish for cleanup
 
+After setting up the machine status, CPU(mips simulator) can fetch instructions and run.
+
 
 6. Which object in Nachos acts the role of process control block
 
-`class Thread` act as process control block. Which has member function like `Fork()`, `Sleep()`, `Finish()`, `setStatus()`. Which corresponds to create, wait, end.
+In thread.h we can find these:
+
+class Thread` act as process control block. Which has  thread states like 
+```
+// Thread state
+enum ThreadStatus { JUST_CREATED,
+                    RUNNING,
+                    READY,
+                    BLOCKED,
+                    ZOMBIE };
+```
+`. Which corresponds to create, run, wait, end like the process control block.
 
 7. When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?
 
-```
+When `Thread::Fork()` is called, thread will be added in `readyList` it will be scheduled to run when ``Thread::Yield()` is called at `Interrupt::OneTick()` Then when `Schedular::FindNextToRun` is called at either `Thread::Sleep()` or `Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.
 
 ```
-When we call `Kernel::ExecAll()`, we will call Kernel::Exec() based on how many user program we and create thread using fork() and allocate stack. Then call `schedular->ReadyToRun(this)` add to `ReadyList`
-
+void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel->interrupt->getLevel() == IntOff);
+    DEBUG(dbgThread, "Putting thread on ready list: " << thread->getName());
+    // cout << "Putting thread on ready list: " << thread->getName() << endl ;
+    thread->setStatus(READY);
+    readyList->Append(thread);
+}
+```
+When we call `Kernel::ExecAll()`, we will call Kernel::Exec() based on how many user program we and create thread using `fork()` and allocate stack. Then call `schedular->ReadyToRun(this)` add to `ReadyList`
 
 # Code implementation
 
@@ -732,49 +759,172 @@ enum ExceptionType { NoException,            // Everything ok!
                      NumExceptionTypes
 };
 ```
-2. Create data structure for physical memory in `kernel.h` and `kernel.cc`
-use bitmap from `lib`
+2. created a bitmap to check the unallocated space in `mainMemory`
 
-in `bitmap.cc`. I implemented the Find function
+In `addrspace.h`
+
+Create a bitmap for knowing which frame has been used
 ```
-// find the first bit that's not set
-int Bitmap::Find(int which) {
-    for (int i = 0; i < numBits; i++) {
-        if (!Test(i)) {
-            return i;
+extern Bitmap available_frame;    // Frame allocation bitmap
+```
+helper functions to help loading segments into `mainMemory` 
+```
+    bool LoadSegment(OpenFile *executable, Segment &segment, unsigned int startVPN, bool readOnly);
+    bool LoadSegments(OpenFile *executable, NoffHeader &noffH);
+
+```
+In `addrspace.cc`
+
+deallocating the frames one by one on `pageTable` 
+```
+AddrSpace::~AddrSpace() {
+    for (unsigned int i = 0; i < numPages; i++) {
+        if (pageTable[i].valid) {
+            available_frame.Clear(pageTable[i].physicalPage);
         }
     }
-    return -1;
+    delete[] pageTable;
 }
 ```
-in `kernel.h`
+In `addrspace::Load()`
+initialize the page table and call `LoadSegments(executable, noffH)` 
 ```
-   Bitmap *FrameBitmap;
-    int get_available_physical_pages();
-    void allocate_and_mark_physical_page();
-    void release_physical_page(int page_n);
-```
-in `Kernel::Initialize()` allocate memory for frame table structure
-```
-    FrameBitmap = new Bitmap(NumPhysPages);
-```
-implement member function for FrameBitmap
-```
-int Kernel::get_available_physical_pages() {
-    return FrameBitmap->NumClear();
+// checking total size stuff
+
+    // Initialize page table entries with virtual page numbers
+    for (unsigned int i = 0; i < numPages; i++) {
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = -1;  // Physical page not assigned yet
+        pageTable[i].valid = FALSE;      // Not loaded into memory yet
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+
+    // Load segments into memory
+    if (!LoadSegments(executable, noffH)) {
+        delete[] pageTable;
+        delete executable;
+        return FALSE;
+    }
+
+    delete executable;  // Close the executable file
+    return TRUE;        // Loading successful
 }
+```
+In `LoadSegments` we load `noffH.code` `noffH.initData` `noffH.readonlyData` `noffH.uninitData` and `UserStack`
+```
+bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &noffH) {
+    unsigned int currVPN = 0;
 
-void Kernel::allocate_and_mark_physical_page() {
-    FrameBitmap->FindAndSet();
+    // Load code segment
+    if (noffH.code.size > 0) {
+        if (!LoadSegment(executable, noffH.code, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.code.size, PageSize);
+    }
+
+    // Load initialized data segment
+    if (noffH.initData.size > 0) {
+        if (!LoadSegment(executable, noffH.initData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.initData.size, PageSize);
+    }
+
+#ifdef RDATA
+    // Load read-only data segment
+    if (noffH.readonlyData.size > 0) {
+        if (!LoadSegment(executable, noffH.readonlyData, currVPN, TRUE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.readonlyData.size, PageSize);
+    }
+#endif
+
+    // **Load uninitialized data segment**
+    if (noffH.uninitData.size > 0) {
+        if (!LoadSegment(executable, noffH.uninitData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.uninitData.size, PageSize);
+    }
+```
+We have to initialize the pageTable because when we were counting the `size` of executable file the stack is not included
+```
+
+    // **Allocate stack pages**
+    unsigned int stackPages = divRoundUp(UserStackSize, PageSize);
+    for (unsigned int i = 0; i < stackPages; i++) {
+        unsigned int vpn = currVPN + i;
+        int pageid = available_frame.FindAndSet();
+        if (pageid == -1) {
+            cerr << "No free frames available for stack allocation.\n";
+            return FALSE;
+        }
+
+        pageTable[vpn].virtualPage = vpn;
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = FALSE;
+        pageTable[vpn].use = FALSE;
+        pageTable[vpn].dirty = FALSE;
+
+        // Zero out the stack page
+        bzero(kernel->machine->mainMemory + pageid * PageSize, PageSize);
+    }
+    currVPN += stackPages;
+
+    return TRUE;
 }
+```
+Then we just load the segment to mainMemory. Firstly, use `Bitmap::FindAndSet()` to check if there is availabe frame. Then, zero out physical page and read segment data into memory
+```
+bool AddrSpace::LoadSegment(OpenFile *executable, Segment &segment, unsigned int startVPN, bool readOnly) {
+    unsigned int numPages = divRoundUp(segment.size, PageSize);
 
-void Kernel::release_physical_page(int pageNumber) {
-    FrameBitmap->Clear(pageNumber);
+    for (unsigned int i = 0; i < numPages; i++) {
+        unsigned int vpn = startVPN + i;
+
+        // Allocate a physical frame
+        int pageid;
+        {
+            pageid = available_frame.FindAndSet();
+            DEBUG(98, "Allocated frame " << pageid);
+        }
+        if (pageid == -1) {
+            cerr << "No free frames available for allocation.\n";
+            kernel->interrupt->setStatus(SystemMode);
+            ExceptionHandler(MemoryLimitException);
+            kernel->interrupt->setStatus(UserMode);
+        }
+
+        // Update page table entry
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = readOnly;
+
+        // Zero out the physical page
+        bzero(kernel->machine->mainMemory + pageid * PageSize, PageSize);
+
+        // Calculate the physical address
+        unsigned int paddr = pageid * PageSize;
+
+        // Read the segment data into memory
+        unsigned int readSize = PageSize;
+        unsigned int remainingSize = segment.size - i * PageSize;
+        if (remainingSize < PageSize) {
+            readSize = remainingSize;
+        }
+
+        executable->ReadAt(
+            kernel->machine->mainMemory + paddr,
+            readSize,
+            segment.inFileAddr + i * PageSize);
+    }
+
+    return TRUE;
 }
 ```
-
-3. set up `valid`, `readOnly`, `use` and `dirty` fields for your page table
-```
-
-```
-
+End of code explanation.
