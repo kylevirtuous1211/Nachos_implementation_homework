@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>trace_code.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<p>Team Contributions:
+Everything is done by 陳安楷</p>
+<h1 id="1-1-threadsthreadcc">1-1. threads/thread.cc</h1>
+<h2 id="threadsleep">Thread::Sleep()</h2>
+<ul>
+<li>
+<p>Main purpose:
+Relinquish the CPU, because the current thread has either <em>finished</em> or is <em>blocked</em> waiting on a synchronization</p>
+</li>
+<li>
+<p>Note:</p>
+</li>
+</ul>
+<ol>
+<li>assumes interrupts are already disabled</li>
+<li>if no threads on ready queue, CPU should be idle until next I/O interrupt (so thread could be inside the ready queue)</li>
+</ol>
+<p>Initializes next thread object:</p>
+<pre class="hljs"><code><div>    Thread *nextThread;
+</div></code></pre>
+<p>Do some assertion and debug code:</p>
+<pre class="hljs"><code><div>    ASSERT(this == kernel-&gt;currentThread);
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Sleeping thread: &quot; &lt;&lt; name);
+    DEBUG(dbgTraCode, &quot;In Thread::Sleep, Sleeping thread: &quot; &lt;&lt; name &lt;&lt; &quot;, &quot; &lt;&lt; kernel-&gt;stats-&gt;totalTicks);
+</div></code></pre>
+<p>change the current thread status to blocked</p>
+<ul>
+<li>status could either be <code>ready</code> <code>running</code> or <code>blocked</code></li>
+</ul>
+<pre class="hljs"><code><div>    status = BLOCKED;
+    // cout &lt;&lt; &quot;debug Thread::Sleep &quot; &lt;&lt; name &lt;&lt; &quot;wait for Idle\n&quot;;
+</div></code></pre>
+<p>when no thread is in the scheduler, CPU idle</p>
+<pre class="hljs"><code><div>    while ((nextThread = kernel-&gt;scheduler-&gt;FindNextToRun()) == NULL) {
+        kernel-&gt;interrupt-&gt;Idle();  // no one to run, wait for an interrupt
+    }
+</div></code></pre>
+<p>When there is a thread in schedular</p>
+<pre class="hljs"><code><div>    // returns when it's time for us to run
+    kernel-&gt;scheduler-&gt;Run(nextThread, finishing);
+</div></code></pre>
+<h2 id="threadstackallocate">Thread::StackAllocate()</h2>
+<ul>
+<li>
+<p>purpose: Allocate and initialize an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+</li>
+<li>
+<p>passed parameters:
+<code>VoidFunctionPtr func</code>: the procedure to be called
+<code>arg</code>: arguments passed to into the procedure</p>
+</li>
+</ul>
+<p>allocate a bounded array, if dereference outside the bounded area will cause a segmentation error.</p>
+<pre class="hljs"><code><div>void Thread::StackAllocate(VoidFunctionPtr func, void *arg) {
+    stack = (int *)AllocBoundedArray(StackSize * sizeof(int));
+</div></code></pre>
+<p>Each ISA has unique characteristics that influence how certain operations are performed, especially those related to low-level memory management and stack handling. Having code for different ISA increases the portability of software</p>
+<ul>
+<li><code>stacktop</code>: Definition: A variable in the code that holds the initial address of the top of the stack memory allocated for a thread.</li>
+</ul>
+<p>stackTop andframe marker for different ISAs:</p>
+<pre class="hljs"><code><div>#ifdef PARISC
+    // HP stack works from low addresses to high addresses
+    // everyone else works the other way: from high addresses to low addresses
+    stackTop = stack + 16;  // HP requires 64-byte frame marker
+    stack[StackSize - 1] = STACK_FENCEPOST;
+#endif
+
+#ifdef SPARC
+    stackTop = stack + StackSize - 96;  // SPARC stack must contains at
+                                        // least 1 activation record
+                                        // to start with.
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef PowerPC                          // RS6000
+    stackTop = stack + StackSize - 16;  // RS6000 requires 64-byte frame marker
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef DECMIPS
+    stackTop = stack + StackSize - 4;  // -4 to be on the safe side!
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef ALPHA
+    stackTop = stack + StackSize - 8;  // -8 to be on the safe side!
+    *stack = STACK_FENCEPOST;
+#endif
+
+#ifdef x86
+    // the x86 passes the return address on the stack.  In order for SWITCH()
+    // to go to ThreadRoot when we switch to this thread, the return addres
+    // used in SWITCH() must be the starting address of ThreadRoot.
+    stackTop = stack + StackSize - 4;  // -4 to be on the safe side!
+    *(--stackTop) = (int)ThreadRoot;
+    *stack = STACK_FENCEPOST;
+#endif
+</div></code></pre>
+<p>initializing the machine state of a newly created thread. Which includes</p>
+<ul>
+<li>program counter (PCstate): points to threadroot</li>
+<li>startup program counter (StartupPCState): do some initialization for the thread using <code>ThreadBegin</code></li>
+<li>Initial program counter (InitialPCState): points to func that's to be executed</li>
+<li>Initial argument state (InitialArgState): points to the argument that passed to func</li>
+<li>When done program counter (WhenDonePCState): points to <code>ThreadFinish</code> for cleanup</li>
+</ul>
+<pre class="hljs"><code><div>#ifdef PARISC
+    machineState[PCState] = PLabelToAddr(ThreadRoot);
+    machineState[StartupPCState] = PLabelToAddr(ThreadBegin);
+    machineState[InitialPCState] = PLabelToAddr(func);
+    machineState[InitialArgState] = arg;
+    machineState[WhenDonePCState] = PLabelToAddr(ThreadFinish);
+#else
+    machineState[PCState] = (void *)ThreadRoot;
+    machineState[StartupPCState] = (void *)ThreadBegin;
+    machineState[InitialPCState] = (void *)func;
+    machineState[InitialArgState] = (void *)arg;
+    machineState[WhenDonePCState] = (void *)ThreadFinish;
+#endif
+}
+</div></code></pre>
+<h2 id="threadfinish">Thread::Finish()</h2>
+<ul>
+<li>purpose: Called by ThreadRoot when a thread is done executing the forked procedure.</li>
+<li>note: tell the schedular to call the destructor once running on a different thread</li>
+</ul>
+<p>disable the interrupt first</p>
+<ul>
+<li>interrupt can be disabled <code>IntOff</code> or enabled <code>IntOn</code></li>
+</ul>
+<pre class="hljs"><code><div>void Thread::Finish() {
+    (void)kernel-&gt;interrupt-&gt;SetLevel(IntOff);
+</div></code></pre>
+<p>do assertion and debug</p>
+<pre class="hljs"><code><div>    ASSERT(this == kernel-&gt;currentThread);
+    DEBUG(dbgThread, &quot;Finishing thread: &quot; &lt;&lt; name);
+</div></code></pre>
+<p>if all the threads are finished</p>
+<ul>
+<li>decrease the number of running threads
+<ul>
+<li>if the number of running threads == 0 then shut down Nachos</li>
+</ul>
+</li>
+</ul>
+<pre class="hljs"><code><div>    if (kernel-&gt;execExit &amp;&amp; this-&gt;getIsExec()) {
+        kernel-&gt;execRunningNum--;
+        if (kernel-&gt;execRunningNum == 0) {
+            kernel-&gt;interrupt-&gt;Halt();
+        }
+    }
+</div></code></pre>
+<p>the current thread has finished so call <code>thread::Sleep()</code></p>
+<pre class="hljs"><code><div>    Sleep(TRUE);  // invokes SWITCH
+    // not reached
+}
+</div></code></pre>
+<h2 id="threadfork">Thread::Fork()</h2>
+<ul>
+<li>
+<p>purpose: Invoke (*func)(arg), allowing caller and callee to execute
+concurrently.</p>
+</li>
+<li>
+<p>passed parameters:
+<code>VoidFunctionPtr func</code>: the procedure to be called
+<code>arg</code>: arguments passed to into the procedure</p>
+</li>
+<li>
+<p>implementation step:</p>
+</li>
+</ul>
+<ol>
+<li>allocate a stack</li>
+<li>initial the stack so that a call to SWITCH will run the procedure</li>
+<li>put the thread on ready queue</li>
+</ol>
+<p>Initialize schedular and interrupt object</p>
+<pre class="hljs"><code><div>void Thread::Fork(VoidFunctionPtr func, void *arg) {
+    Interrupt *interrupt = kernel-&gt;interrupt;
+    Scheduler *scheduler = kernel-&gt;scheduler;
+    IntStatus oldLevel;
+</div></code></pre>
+<p>debug message and allocate stack using <code>StackAllocate</code></p>
+<pre class="hljs"><code><div>    DEBUG(dbgThread, &quot;Forking thread: &quot; &lt;&lt; name &lt;&lt; &quot; f(a): &quot; &lt;&lt; (int)func &lt;&lt; &quot; &quot; &lt;&lt; arg);
+    StackAllocate(func, arg);
+</div></code></pre>
+<p>Turning off the interrupt and schdule the thread to ready queue</p>
+<p>WHY turn off??
+Disabling Interrupts (IntOff): Turning off interrupts means that the processor
+will not respond to these interrupt signals. This is often done to enter a
+critical section where shared resources are accessed, preventing race conditions or inconsistent states.</p>
+<pre class="hljs"><code><div>    oldLevel = interrupt-&gt;SetLevel(IntOff);
+    scheduler-&gt;ReadyToRun(this);  // ReadyToRun assumes that interrupts
+                                  // are disabled!
+    (void)interrupt-&gt;SetLevel(oldLevel);
+}
+</div></code></pre>
+<h1 id="1-2-userprogaddrspacecc">1-2. userprog/addrspace.cc</h1>
+<h2 id="addrspaceaddrspace">AddrSpace::AddrSpace()</h2>
+<ul>
+<li>
+<p>what is address space?
+An address space is the range of memory addresses that a process can use to access its data and instructions.
+Each process operates as if it has its own dedicated memory</p>
+</li>
+<li>
+<p>purpose: the constructor to create a new address space</p>
+</li>
+</ul>
+<p>create a new page pageTable</p>
+<pre class="hljs"><code><div>AddrSpace::AddrSpace() {
+    pageTable = new TranslationEntry[NumPhysPages];
+</div></code></pre>
+<p>initialize page content inside the page pageTable</p>
+<ul>
+<li>different attributes
+<code>virtualPage</code>: page number in virtual memory
+<code>physicalPage</code>: frame number
+<code>valid</code>: whether page is loaded in physical memory
+<code>use</code>: whether the page has been modified before, for page replacement algorithms
+<code>dirty</code>: check if the page has been write before since loaded from disk</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 0; i &lt; NumPhysPages; i++) {
+        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+</div></code></pre>
+<p>initialize the memory to zero for clean space</p>
+<pre class="hljs"><code><div>    // zero out the entire address space
+    bzero(kernel-&gt;machine-&gt;mainMemory, MemorySize);
+}
+</div></code></pre>
+<h2 id="addrspaceexecute">AddrSpace::Execute()</h2>
+<ul>
+<li>
+<p>purpose: OS execute the current thread</p>
+</li>
+<li>
+<p>passed parameters:
+<code>char *fileName</code>: the name for thread executed
+change the CPU's task to the current thread</p>
+</li>
+</ul>
+<pre class="hljs"><code><div>void AddrSpace::Execute(char *fileName) {
+    kernel-&gt;currentThread-&gt;space = this;
+</div></code></pre>
+<p>initial registers, load page table, then run the user program</p>
+<pre class="hljs"><code><div>    this-&gt;InitRegisters();  // set the initial register values
+    this-&gt;RestoreState();   // load page table register
+
+    kernel-&gt;machine-&gt;Run();  // jump to the user progam
+
+    ASSERTNOTREACHED();  // machine-&gt;Run never returns;
+                         // the address space exits
+                         // by doing the syscall &quot;exit&quot;
+}
+</div></code></pre>
+<h2 id="addrspaceload">AddrSpace::Load()</h2>
+<ul>
+<li>
+<p>purpose: Load a user program into memory from a file</p>
+</li>
+<li>
+<p>passed parameters:
+<code>char *fileName</code>: the file containing the object code to load into memory</p>
+</li>
+</ul>
+<p>open the executable file using fileSystem, initializes NoffHeader <code>noffH</code></p>
+<pre class="hljs"><code><div>bool AddrSpace::Load(char *fileName) {
+    OpenFile *executable = kernel-&gt;fileSystem-&gt;Open(fileName);
+    NoffHeader noffH;
+    unsigned int size;
+</div></code></pre>
+<p>case when the executable cannot be open</p>
+<pre class="hljs"><code><div>    if (executable == NULL) {
+        cerr &lt;&lt; &quot;Unable to open file &quot; &lt;&lt; fileName &lt;&lt; &quot;\n&quot;;
+        return FALSE;
+    }
+</div></code></pre>
+<p>verify that the file is of the expected format before processing it.
+if it's not <code>NOFFMAGIC</code> you should swap it
+SwapHeader so <code>noffH.noffMagic</code> == <code>NOFFMAGIC</code></p>
+<pre class="hljs"><code><div>    executable-&gt;ReadAt((char *)&amp;noffH, sizeof(noffH), 0);
+    if ((noffH.noffMagic != NOFFMAGIC) &amp;&amp;
+        (WordToHost(noffH.noffMagic) == NOFFMAGIC))
+        SwapHeader(&amp;noffH);
+    ASSERT(noffH.noffMagic == NOFFMAGIC);
+</div></code></pre>
+<p>RDATA is for read only file. Here we calculate the address space needed</p>
+<pre class="hljs"><code><div>#ifdef RDATA
+    // how big is address space?
+    size = noffH.code.size + noffH.readonlyData.size + noffH.initData.size +
+           noffH.uninitData.size + UserStackSize;
+    // we need to increase the size
+    // to leave room for the stack
+#else
+    // how big is address space?
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size + UserStackSize;  // we need to increase the size
+                                                                                           // to leave room for the stack
+#endif
+</div></code></pre>
+<p>calculate how many pages needed using <code>numPages</code></p>
+<pre class="hljs"><code><div>    numPages = divRoundUp(size, PageSize);
+    size = numPages * PageSize;
+
+    ASSERT(numPages &lt;= NumPhysPages);  // check we're not trying
+                                       // to run anything too big --
+                                       // at least until we have
+                                       // virtual memory
+
+    DEBUG(dbgAddr, &quot;Initializing address space: &quot; &lt;&lt; numPages &lt;&lt; &quot;, &quot; &lt;&lt; size);
+</div></code></pre>
+<p>Copy the code <code>noffH.code</code> and data segments <code>noffH.initData</code> into main memory.
+Using <code>OpenFile::ReadAt(char *into, int numBytes, int position)</code></p>
+<pre class="hljs"><code><div>    // Note: this code assumes that virtual address = physical address
+    if (noffH.code.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing code segment.&quot;);
+        DEBUG(dbgAddr, noffH.code.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.code.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.code.virtualAddr]),
+            noffH.code.size, noffH.code.inFileAddr);
+    }
+    if (noffH.initData.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing data segment.&quot;);
+        DEBUG(dbgAddr, noffH.initData.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.initData.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.initData.virtualAddr]),
+            noffH.initData.size, noffH.initData.inFileAddr);
+    }
+</div></code></pre>
+<p>Then, we write readonlyData into main memory</p>
+<pre class="hljs"><code><div>#ifdef RDATA
+    if (noffH.readonlyData.size &gt; 0) {
+        DEBUG(dbgAddr, &quot;Initializing read only data segment.&quot;);
+        DEBUG(dbgAddr, noffH.readonlyData.virtualAddr &lt;&lt; &quot;, &quot; &lt;&lt; noffH.readonlyData.size);
+        executable-&gt;ReadAt(
+            &amp;(kernel-&gt;machine-&gt;mainMemory[noffH.readonlyData.virtualAddr]),
+            noffH.readonlyData.size, noffH.readonlyData.inFileAddr);
+    }
+#endif
+</div></code></pre>
+<p>close file at the end of load file</p>
+<pre class="hljs"><code><div>    delete executable;  // close file
+    return TRUE;        // success
+}
+
+</div></code></pre>
+<h1 id="1-3-threadskernelcc">1-3. threads/kernel.cc</h1>
+<h2 id="kernelkernel">Kernel::Kernel()</h2>
+<ul>
+<li>purpose: Constructor for <code>Kernel</code> object to interpret command line arguments in order to determine flags</li>
+<li>initialize:
+<code>argc</code>: argument count
+<code>argv</code>: argument vector that points to the arguments</li>
+</ul>
+<p>initialize flags variables for kernel object</p>
+<pre class="hljs"><code><div>Kernel::Kernel(int argc, char **argv) {
+    randomSlice = FALSE;
+    debugUserProg = FALSE;
+    execExit = FALSE;
+    consoleIn = NULL;   // default is stdin
+    consoleOut = NULL;  // default is stdout
+#ifndef FILESYS_STUB
+    formatFlag = FALSE;
+#endif
+    reliability = 1;  // network reliability, default is 1.0
+    hostName = 0;     // machine id, also UNIX socket name
+                      // 0 is the default machine id
+</div></code></pre>
+<p>what each flag does:</p>
+<ul>
+<li>-rs: enable pseudo random time slicing</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 1; i &lt; argc; i++) {
+        if (strcmp(argv[i], &quot;-rs&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            RandomInit(atoi(argv[i + 1]));  // initialize pseudo-random
+                                            // number generator
+            randomSlice = TRUE;
+            i++;
+</div></code></pre>
+<ul>
+<li>-s: enable single step debugging</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-s&quot;) == 0) {
+            debugUserProg = TRUE;
+</div></code></pre>
+<ul>
+<li>-e: add another executable file</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-e&quot;) == 0) {
+            execfile[++execfileNum] = argv[++i];
+            cout &lt;&lt; execfile[execfileNum] &lt;&lt; &quot;\n&quot;;
+</div></code></pre>
+<ul>
+<li>-ee: exit when all the threads finished running</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-ee&quot;) == 0) {
+            // Added by @dasbd72
+            // To end the program after all the threads are done
+            execExit = TRUE;
+</div></code></pre>
+<ul>
+<li>-ci: specifies the file to read input from</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-ci&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            consoleIn = argv[i + 1];
+            i++;
+</div></code></pre>
+<ul>
+<li>-co: specifies the file to output to</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-co&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);
+            consoleOut = argv[i + 1];
+            i++;
+
+#ifndef FILESYS_STUB
+        } else if (strcmp(argv[i], &quot;-f&quot;) == 0) {
+            formatFlag = TRUE;
+#endif
+</div></code></pre>
+<ul>
+<li>-n: likelyhood messages are dropped</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-n&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);  // next argument is float
+            reliability = atof(argv[i + 1]);
+            i++;
+</div></code></pre>
+<ul>
+<li>-m: set machine id</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-m&quot;) == 0) {
+            ASSERT(i + 1 &lt; argc);  // next argument is int
+            hostName = atoi(argv[i + 1]);
+            i++;
+</div></code></pre>
+<ul>
+<li>-u: print out Partial usage information</li>
+</ul>
+<pre class="hljs"><code><div>        } else if (strcmp(argv[i], &quot;-u&quot;) == 0) {
+            cout &lt;&lt; &quot;Partial usage: nachos [-rs randomSeed]\n&quot;;
+            cout &lt;&lt; &quot;Partial usage: nachos [-s]\n&quot;;
+            cout &lt;&lt; &quot;Partial usage: nachos [-ci consoleIn] [-co consoleOut]\n&quot;;
+#ifndef FILESYS_STUB
+            cout &lt;&lt; &quot;Partial usage: nachos [-nf]\n&quot;;
+#endif
+            cout &lt;&lt; &quot;Partial usage: nachos [-n #] [-m #]\n&quot;;
+        }
+    }
+}
+</div></code></pre>
+<h2 id="kernelexecall">Kernel::ExecAll()</h2>
+<ul>
+<li>purpose: execute all the executable file inside the main memory</li>
+<li>recall: use -e to add executable file</li>
+</ul>
+<p>iterate through all the executable file, execute them in kernel using <code>Exec</code> (trace next!)</p>
+<pre class="hljs"><code><div>void Kernel::ExecAll() {
+    for (int i = 1; i &lt;= execfileNum; i++) {
+        int a = Exec(execfile[i]);
+    }
+</div></code></pre>
+<p>Call Finish to release thread memory used in <code>Exec(char *name)</code>
+<a href="##Thread::Finish()">Finish</a></p>
+<pre class="hljs"><code><div>    currentThread-&gt;Finish();
+    // Kernel::Exec();
+}
+</div></code></pre>
+<h2 id="kernelexec">Kernel::Exec()</h2>
+<ul>
+<li>purpose: Execute the executable file by creating a new thread and allocate address space for the thread</li>
+<li>passed parameters: <code>char *name</code>: the debug name for the created thread</li>
+</ul>
+<p>Create a new thread object within <code>Kernel</code> class</p>
+<ul>
+<li>t: an array of 10 pointers to <code>Thread</code> objects within <code>Kernel</code> class</li>
+</ul>
+<pre class="hljs"><code><div>int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
+</div></code></pre>
+<ol>
+<li>set the state of thread object to is executing</li>
+<li>allocate address space for the thread</li>
+<li>call <code>Fork()</code> on the current thread to start running <code>Thread *t</code></li>
+</ol>
+<pre class="hljs"><code><div>    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+</div></code></pre>
+<p>return the <code>threadNum</code> that was created</p>
+<pre class="hljs"><code><div>    return threadNum - 1;
+}
+</div></code></pre>
+<h2 id="kernelforkexecute">Kernel::ForkExecute()</h2>
+<ul>
+<li>
+<p>purpose: to execute the forked thread</p>
+</li>
+<li>
+<p>passed parameters:
+<code>Thread *t</code>: the pointer to the thread object</p>
+</li>
+</ul>
+<pre class="hljs"><code><div>void ForkExecute(Thread *t) {
+    if (!t-&gt;space-&gt;Load(t-&gt;getName())) {
+        return;  // executable not found
+    }
+</div></code></pre>
+<p>execute the thread using <a href="#addrspaceexecute">Execute</a></p>
+<pre class="hljs"><code><div>    t-&gt;space-&gt;Execute(t-&gt;getName());
+}
+</div></code></pre>
+<h1 id="1-4-threadsschedulercc">1-4. threads/scheduler.cc</h1>
+<h2 id="schedulerreadytorun">Scheduler::ReadyToRun()</h2>
+<ul>
+<li>purpose: Mark a thread as ready, but not running. Put it on the ready list, for later scheduling onto the CPU.</li>
+<li>passed parameters:
+<code>Thread *thread</code>: the thread pointer that points to the current thread object</li>
+</ul>
+<p>some debug/assertion check</p>
+<pre class="hljs"><code><div>void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName());
+    // cout &lt;&lt; &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName() &lt;&lt; endl ;
+</div></code></pre>
+<p>set the status of current thread to <code>READY</code> and append to ready list</p>
+<ul>
+<li><code>List&lt;Thread *&gt; *Scheduler::readyList</code>: queued ready thread implemented with linked-list</li>
+</ul>
+<pre class="hljs"><code><div>    thread-&gt;setStatus(READY);
+    readyList-&gt;Append(thread);
+}
+</div></code></pre>
+<h2 id="schedulerrun">Scheduler::Run()</h2>
+<ul>
+<li>purpose: Dispatch the CPU to nextThread. Use context switch routine to switch to next thread</li>
+<li>Note: assume current running thread has already changed from running to blocked or ready</li>
+<li>passed parameters:
+<code>Thread *nextThread</code>: thread object to be executed
+<code>bool finishing</code>: is set if the current thread is to be deleted once we're no longer running on its stack</li>
+</ul>
+<p>create a <code>Thread</code> pointer that points to old thread</p>
+<pre class="hljs"><code><div>void Scheduler::Run(Thread *nextThread, bool finishing) {
+    Thread *oldThread = kernel-&gt;currentThread;
+</div></code></pre>
+<p>delete old thread if <code>finishing</code> is set</p>
+<pre class="hljs"><code><div>    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+
+    if (finishing) {  // mark that we need to delete current thread
+        ASSERT(toBeDestroyed == NULL);
+        toBeDestroyed = oldThread;
+    }
+</div></code></pre>
+<p>save the state of user program thread</p>
+<pre class="hljs"><code><div>    if (oldThread-&gt;space != NULL) {  // if this thread is a user program,
+        oldThread-&gt;SaveUserState();  // save the user's CPU registers
+        oldThread-&gt;space-&gt;SaveState(); // save address space data
+    }
+</div></code></pre>
+<p>if <code>oldThread</code> doesn't overflow, do context swtich with <code>nextThread</code></p>
+<pre class="hljs"><code><div>    oldThread-&gt;CheckOverflow();  // check if the old thread
+                                 // had an undetected stack overflow
+
+    kernel-&gt;currentThread = nextThread;  // switch to the next thread
+    nextThread-&gt;setStatus(RUNNING);      // nextThread is now running
+
+    DEBUG(dbgThread, &quot;Switching from: &quot; &lt;&lt; oldThread-&gt;getName() &lt;&lt; &quot; to: &quot; &lt;&lt; nextThread-&gt;getName());
+
+    // This is a machine-dependent assembly language routine defined
+    // in switch.s.  You may have to think
+    // a bit to figure out what happens after this, both from the point
+    // of view of the thread and from the perspective of the &quot;outside world&quot;.
+
+    SWITCH(oldThread, nextThread); // Stop running oldThread, start run nextThread
+</div></code></pre>
+<p>debug messages, interrupt needs to be disabled so saving states of 2 process can be completed</p>
+<pre class="hljs"><code><div>    // we're back, running oldThread
+
+    // interrupts are off when we return from switch!
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Now in thread: &quot; &lt;&lt; oldThread-&gt;getName());
+</div></code></pre>
+<p>destroy the old thread if it has been set <code>finishing</code> is true.
+Otherwise, restore register state and address space state</p>
+<pre class="hljs"><code><div>    CheckToBeDestroyed();  // check if thread we were running
+                           // before this one has finished
+                           // and needs to be cleaned up
+
+    if (oldThread-&gt;space != NULL) {     // if there is an address space
+        oldThread-&gt;RestoreUserState();  // to restore, do it.
+        oldThread-&gt;space-&gt;RestoreState();
+    }
+}
+</div></code></pre>
+<h1 id="answering-questions">Answering questions:</h1>
+<ol>
+<li>How does Nachos allocate the memory space for a new thread(process)?</li>
+</ol>
+<p>Ans: In main function calls <code>Kernel::ExecAll()</code> function that runs all the executable file. In <code>Kernel::Exec</code>, new Thread object is being created</p>
+<pre class="hljs"><code><div>    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+</div></code></pre>
+<p>So the virtual space and physical space mapping is done by dynamic allocating a new <code>AddrSpace()</code> While in <code>Thread::Fork()</code>, <code>Thread::StackAllocate()</code> the system allocates and initializes an execution stack. Allowing each thread to have its own memory space for function calls and local variables.</p>
+<ol start="2">
+<li>How does Nachos initialize the memory content of a thread(process), including loading the user binary code in the memory?</li>
+</ol>
+<p>Inside Kernel::Exec(char *name)</p>
+<pre class="hljs"><code><div>int Kernel::Exec(char *name) {
+    t[threadNum] = new Thread(name, threadNum);
+    t[threadNum]-&gt;setIsExec();
+    t[threadNum]-&gt;space = new AddrSpace();
+    t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;ForkExecute, (void *)t[threadNum]);
+    threadNum++;
+
+    return threadNum - 1;
+</div></code></pre>
+<ol>
+<li>
+<p>Nachos uses <code>AddrSpace()</code> to initialize a new space for the thread.</p>
+</li>
+<li>
+<p>Then <code>t[threadNum]-&gt;Fork((VoidFunctionPtr)&amp;</code> loads binary inside the virtual table and physical space. While calls <code>StackAllocate</code> which allocates space for <code>this-&gt;InitRegisters()</code> and <code>this-&gt;RestoreState()</code></p>
+</li>
+</ol>
+<pre class="hljs"><code><div>void Thread::Fork(VoidFunctionPtr func, void *arg) {
+    Interrupt *interrupt = kernel-&gt;interrupt;
+    Scheduler *scheduler = kernel-&gt;scheduler;
+    IntStatus oldLevel;
+
+    DEBUG(dbgThread, &quot;Forking thread: &quot; &lt;&lt; name &lt;&lt; &quot; f(a): &quot; &lt;&lt; (int)func &lt;&lt; &quot; &quot; &lt;&lt; arg);
+    StackAllocate(func, arg);
+
+    oldLevel = interrupt-&gt;SetLevel(IntOff);
+    scheduler-&gt;ReadyToRun(this);  // ReadyToRun assumes that interrupts
+                                  // are disabled!
+    (void)interrupt-&gt;SetLevel(oldLevel);
+}
+</div></code></pre>
+<pre class="hljs"><code><div>void AddrSpace::Execute(char *fileName) {
+    kernel-&gt;currentThread-&gt;space = this;
+
+    this-&gt;InitRegisters();  // set the initial register values
+    this-&gt;RestoreState();   // load page table register
+
+    kernel-&gt;machine-&gt;Run();  // jump to the user progam
+
+    ASSERTNOTREACHED();  // machine-&gt;Run never returns;
+                         // the address space exits
+                         // by doing the syscall &quot;exit&quot;
+}
+</div></code></pre>
+<ol start="3">
+<li>
+<p>When <code>Thread::Fork()</code> is called, thread will be added in <code>readyList</code> it will be scheduled to run when ``Thread::Yield()<code>is called at</code>Interrupt::OneTick()<code>Then when</code>Schedular::FindNextToRun<code>is called at either</code>Thread::Sleep()<code>or</code>Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.</p>
+</li>
+<li>
+<p>How does Nachos create and manage the page table?</p>
+</li>
+</ol>
+<p>create the page table by dynamically allocate an array with size of the executable file. Then, we load data page by page while setting the below attributes.</p>
+<ul>
+<li>different attributes
+<code>virtualPage</code>: page number in virtual memory
+<code>physicalPage</code>: frame number
+<code>valid</code>: whether page is loaded in physical memory
+<code>use</code>: whether the page has been modified before, for page replacement algorithms
+<code>dirty</code>: check if the page has been write before since loaded from disk</li>
+</ul>
+<pre class="hljs"><code><div>    for (int i = 0; i &lt; NumPhysPages; i++) {
+        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
+        pageTable[i].physicalPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+</div></code></pre>
+<p>initialize the physical memory to zero for clean space to put page data.</p>
+<pre class="hljs"><code><div>// zero out the entire address space
+    bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
+}
+</div></code></pre>
+<ol start="4">
+<li>How does Nachos translate addresses?</li>
+</ol>
+<p>In <code>AddrSpace::Translate</code> we can find the following formulas, thus knowing how Nachos translate addreesses</p>
+<ol>
+<li>virtual page number: <code>unsigned int vpn = vaddr / PageSize;</code></li>
+<li>offset: <code>unsigned int offset = vaddr % PageSize</code></li>
+<li>page table entry: <code> pte = &amp;pageTable[vpn];</code></li>
+<li>physical frame number: <code>pfn = pte-&gt;physicalPage;</code></li>
+</ol>
+<p>Physical Addreess: <code>*paddr = pfn * PageSize + offset;</code></p>
+<ol start="5">
+<li>How Nachos initializes the machine status (registers, etc) before running a thread(process)?</li>
+</ol>
+<p>At <code>Thread::Fork()</code> it calls <code>StackAllocate(func, arg)</code></p>
+<p><code>func</code> includes calling <code>InitRegisters()</code> and <code>RestoreState()</code> which also sets up registers.</p>
+<p>In <code>StackAllocate()</code> it sets up these information</p>
+<ul>
+<li>program counter (PCstate): points to threadroot</li>
+<li>startup program counter (StartupPCState): do some initialization for the thread using ThreadBegin</li>
+<li>Initial program counter (InitialPCState): points to func that's to be executed</li>
+<li>Initial argument state (InitialArgState): points to the argument that passed to func</li>
+<li>When done program counter (WhenDonePCState): points to ThreadFinish for cleanup</li>
+</ul>
+<p>After setting up the machine status, CPU(mips simulator) can fetch instructions and run.</p>
+<ol start="6">
+<li>Which object in Nachos acts the role of process control block</li>
+</ol>
+<p>In thread.h we can find these:</p>
+<p>class Thread` act as process control block. Which has  thread states like</p>
+<pre class="hljs"><code><div>// Thread state
+enum ThreadStatus { JUST_CREATED,
+                    RUNNING,
+                    READY,
+                    BLOCKED,
+                    ZOMBIE };
+</div></code></pre>
+<p>`. Which corresponds to create, run, wait, end like the process control block.</p>
+<ol start="7">
+<li>When and how does a thread get added into the ReadyToRun queue of Nachos CPU scheduler?</li>
+</ol>
+<p>When <code>Thread::Fork()</code> is called, thread will be added in <code>readyList</code> it will be scheduled to run when ``Thread::Yield()<code>is called at</code>Interrupt::OneTick()<code>Then when</code>Schedular::FindNextToRun<code>is called at either</code>Thread::Sleep()<code>or</code>Thread::Yield()` we will get the next thread to run and thus achieving multiprogramming.</p>
+<pre class="hljs"><code><div>void Scheduler::ReadyToRun(Thread *thread) {
+    ASSERT(kernel-&gt;interrupt-&gt;getLevel() == IntOff);
+    DEBUG(dbgThread, &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName());
+    // cout &lt;&lt; &quot;Putting thread on ready list: &quot; &lt;&lt; thread-&gt;getName() &lt;&lt; endl ;
+    thread-&gt;setStatus(READY);
+    readyList-&gt;Append(thread);
+}
+</div></code></pre>
+<p>When we call <code>Kernel::ExecAll()</code>, we will call Kernel::Exec() based on how many user program we and create thread using <code>fork()</code> and allocate stack. Then call <code>schedular-&gt;ReadyToRun(this)</code> add to <code>ReadyList</code></p>
+<h1 id="code-implementation">Code implementation</h1>
+<h3 id="machineh">machine.h</h3>
+<ol>
+<li>added a exception type called MemoryLimException to catch insufficient memory</li>
+</ol>
+<pre class="hljs"><code><div>enum ExceptionType { NoException,            // Everything ok!
+                     SyscallException,       // A program executed a system call.
+                     PageFaultException,     // No valid translation found
+                     ReadOnlyException,      // Write attempted to page marked
+                                             // &quot;read-only&quot;
+                     BusErrorException,      // Translation resulted in an
+                                             // invalid physical address
+                     AddressErrorException,  // Unaligned reference or one that
+                                             // was beyond the end of the
+                                             // address space
+                     OverflowException,      // Integer overflow in add or sub.
+                     IllegalInstrException,  // Unimplemented or reserved instr.
+                    
+                     MemoryLimException,     // added: Insufficient memory
+                     NumExceptionTypes
+};
+</div></code></pre>
+<ol start="2">
+<li>created a bitmap to check the unallocated space in <code>mainMemory</code></li>
+</ol>
+<p>In <code>addrspace.h</code></p>
+<p>Create a bitmap for knowing which frame has been used</p>
+<pre class="hljs"><code><div>extern Bitmap available_frame;    // Frame allocation bitmap
+</div></code></pre>
+<p>helper functions to help loading segments into <code>mainMemory</code></p>
+<pre class="hljs"><code><div>    bool LoadSegment(OpenFile *executable, Segment &amp;segment, unsigned int startVPN, bool readOnly);
+    bool LoadSegments(OpenFile *executable, NoffHeader &amp;noffH);
+
+</div></code></pre>
+<p>In <code>addrspace.cc</code></p>
+<p>deallocating the frames one by one on <code>pageTable</code></p>
+<pre class="hljs"><code><div>AddrSpace::~AddrSpace() {
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        if (pageTable[i].valid) {
+            available_frame.Clear(pageTable[i].physicalPage);
+        }
+    }
+    delete[] pageTable;
+}
+</div></code></pre>
+<p>In <code>addrspace::Load()</code>
+initialize the page table and call <code>LoadSegments(executable, noffH)</code></p>
+<pre class="hljs"><code><div>// checking total size stuff
+
+    // Initialize page table entries with virtual page numbers
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        pageTable[i].virtualPage = i;
+        pageTable[i].physicalPage = -1;  // Physical page not assigned yet
+        pageTable[i].valid = FALSE;      // Not loaded into memory yet
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+    }
+
+    // Load segments into memory
+    if (!LoadSegments(executable, noffH)) {
+        delete[] pageTable;
+        delete executable;
+        return FALSE;
+    }
+
+    delete executable;  // Close the executable file
+    return TRUE;        // Loading successful
+}
+</div></code></pre>
+<p>In <code>LoadSegments</code> we load <code>noffH.code</code> <code>noffH.initData</code> <code>noffH.readonlyData</code> <code>noffH.uninitData</code> and <code>UserStack</code></p>
+<pre class="hljs"><code><div>bool AddrSpace::LoadSegments(OpenFile *executable, NoffHeader &amp;noffH) {
+    unsigned int currVPN = 0;
+
+    // Load code segment
+    if (noffH.code.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.code, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.code.size, PageSize);
+    }
+
+    // Load initialized data segment
+    if (noffH.initData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.initData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.initData.size, PageSize);
+    }
+
+#ifdef RDATA
+    // Load read-only data segment
+    if (noffH.readonlyData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.readonlyData, currVPN, TRUE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.readonlyData.size, PageSize);
+    }
+#endif
+
+    // **Load uninitialized data segment**
+    if (noffH.uninitData.size &gt; 0) {
+        if (!LoadSegment(executable, noffH.uninitData, currVPN, FALSE)) {
+            return FALSE;
+        }
+        currVPN += divRoundUp(noffH.uninitData.size, PageSize);
+    }
+</div></code></pre>
+<p>We have to initialize the pageTable because when we were counting the <code>size</code> of executable file the stack is not included</p>
+<pre class="hljs"><code><div>
+    // **Allocate stack pages**
+    unsigned int stackPages = divRoundUp(UserStackSize, PageSize);
+    for (unsigned int i = 0; i &lt; stackPages; i++) {
+        unsigned int vpn = currVPN + i;
+        int pageid = available_frame.FindAndSet();
+        if (pageid == -1) {
+            cerr &lt;&lt; &quot;No free frames available for stack allocation.\n&quot;;
+            return FALSE;
+        }
+
+        pageTable[vpn].virtualPage = vpn;
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = FALSE;
+        pageTable[vpn].use = FALSE;
+        pageTable[vpn].dirty = FALSE;
+
+        // Zero out the stack page
+        bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
+    }
+    currVPN += stackPages;
+
+    return TRUE;
+}
+</div></code></pre>
+<p>Then we just load the segment to mainMemory. Firstly, use <code>Bitmap::FindAndSet()</code> to check if there is availabe frame. Then, zero out physical page and read segment data into memory</p>
+<pre class="hljs"><code><div>bool AddrSpace::LoadSegment(OpenFile *executable, Segment &amp;segment, unsigned int startVPN, bool readOnly) {
+    unsigned int numPages = divRoundUp(segment.size, PageSize);
+
+    for (unsigned int i = 0; i &lt; numPages; i++) {
+        unsigned int vpn = startVPN + i;
+
+        // Allocate a physical frame
+        int pageid;
+        {
+            pageid = available_frame.FindAndSet();
+            DEBUG(98, &quot;Allocated frame &quot; &lt;&lt; pageid);
+        }
+        if (pageid == -1) {
+            cerr &lt;&lt; &quot;No free frames available for allocation.\n&quot;;
+            kernel-&gt;interrupt-&gt;setStatus(SystemMode);
+            ExceptionHandler(MemoryLimitException);
+            kernel-&gt;interrupt-&gt;setStatus(UserMode);
+        }
+
+        // Update page table entry
+        pageTable[vpn].physicalPage = pageid;
+        pageTable[vpn].valid = TRUE;
+        pageTable[vpn].readOnly = readOnly;
+
+        // Zero out the physical page
+        bzero(kernel-&gt;machine-&gt;mainMemory + pageid * PageSize, PageSize);
+
+        // Calculate the physical address
+        unsigned int paddr = pageid * PageSize;
+
+        // Read the segment data into memory
+        unsigned int readSize = PageSize;
+        unsigned int remainingSize = segment.size - i * PageSize;
+        if (remainingSize &lt; PageSize) {
+            readSize = remainingSize;
+        }
+
+        executable-&gt;ReadAt(
+            kernel-&gt;machine-&gt;mainMemory + paddr,
+            readSize,
+            segment.inFileAddr + i * PageSize);
+    }
+
+    return TRUE;
+}
+</div></code></pre>
+<p>End of code explanation.</p>
+
+</body>
+</html>
