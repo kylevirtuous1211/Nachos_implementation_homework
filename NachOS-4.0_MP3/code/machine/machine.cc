@@ -95,12 +95,12 @@ Machine::~Machine() {
 //----------------------------------------------------------------------
 
 void Machine::RaiseException(ExceptionType which, int badVAddr) {
-    DEBUG(dbgMach, "Exception: " << exceptionNames[which]);
-    registers[BadVAddrReg] = badVAddr;
+    DEBUG(dbgMach, "Exception: " << exceptionNames[which]);// Debug 輸出：顯示當前的異常類型
+    registers[BadVAddrReg] = badVAddr;// 將發生異常的虛擬地址儲存到寄存器
     DelayedLoad(0, 0);  // finish anything in progress
-    kernel->interrupt->setStatus(SystemMode);
+    kernel->interrupt->setStatus(SystemMode);//準備進入內核處理異常
     ExceptionHandler(which);  // interrupts are enabled at this point
-    kernel->interrupt->setStatus(UserMode);
+    kernel->interrupt->setStatus(UserMode);//回用戶模式
 }
 
 //----------------------------------------------------------------------

@@ -114,12 +114,12 @@ char ConsoleInput::GetChar() {
 
 ConsoleOutput::ConsoleOutput(char *writeFile, CallBackObj *toCall) {
     if (writeFile == NULL)
-        writeFileNo = 1;  // display = stdout
+        writeFileNo = 1;  // 如果沒有指定writeFile，將輸出設為標準輸出(stdout)
     else
-        writeFileNo = OpenForWrite(writeFile);
+        writeFileNo = OpenForWrite(writeFile);  // 否則開啟指定的文件進行寫入
 
-    callWhenDone = toCall;
-    putBusy = FALSE;
+    callWhenDone = toCall;  // 設定當寫入完成後要呼叫的中斷處理函數
+    putBusy = FALSE;  // 初始化putBusy為FALSE，表示目前沒有進行寫入操作
 }
 
 //----------------------------------------------------------------------
@@ -139,10 +139,10 @@ ConsoleOutput::~ConsoleOutput() {
 //----------------------------------------------------------------------
 
 void ConsoleOutput::CallBack() {
-    DEBUG(dbgTraCode, "In ConsoleOutput::CallBack(), " << kernel->stats->totalTicks);
-    putBusy = FALSE;
-    kernel->stats->numConsoleCharsWritten++;
-    callWhenDone->CallBack();
+    DEBUG(dbgTraCode, "In ConsoleOutput::CallBack(), " << kernel->stats->totalTicks);  // 輸出當前的模擬時鐘時間
+    putBusy = FALSE;  // 將 putBusy 標記為 FALSE，表示可以輸出新的字元
+    kernel->stats->numConsoleCharsWritten++;  // 更新已寫入的控制台字元計數
+    callWhenDone->CallBack();  // 調用回調函數，通知操作已完成
 }
 
 //----------------------------------------------------------------------
@@ -152,8 +152,10 @@ void ConsoleOutput::CallBack() {
 //----------------------------------------------------------------------
 
 void ConsoleOutput::PutChar(char ch) {
-    ASSERT(putBusy == FALSE);
-    WriteFile(writeFileNo, &ch, sizeof(char));
-    putBusy = TRUE;
-    kernel->interrupt->Schedule(this, ConsoleTime, ConsoleWriteInt);
+    ASSERT(putBusy == FALSE); // 確認目前沒有進行其他輸出，若putBusy不是FALSE，則觸發錯誤
+    WriteFile(writeFileNo, &ch, sizeof(char)); // 將單一字元寫入指定的文件或輸出設備（如stdout）
+    putBusy = TRUE; // 標記裝置為忙碌狀態，避免同時進行多個輸出
+    kernel->interrupt->Schedule(this, ConsoleTime, ConsoleWriteInt); 
+    // 安排一個未來的中斷，當時間到達時呼叫ConsoleWriteInt來處理後續操作
 }
+

@@ -129,7 +129,7 @@ SelfTestHelper(Semaphore *pong) {
 }
 
 void Semaphore::SelfTest() {
-    Thread *helper = new Thread("ping", 1);
+    Thread *helper = new Thread("ping", 1, INIT_PRIORITY);
 
     ASSERT(value == 0);  // otherwise test won't work!
     ping = new Semaphore("ping", 0);

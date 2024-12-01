@@ -106,7 +106,7 @@ void SynchList<T>::SelfTestHelper(void* data) {
 
 template <class T>
 void SynchList<T>::SelfTest(T val) {
-    Thread* helper = new Thread("ping", 1);
+    Thread* helper = new Thread("ping", 1, INIT_PRIORITY);
 
     ASSERT(list->IsEmpty());
     selfTestPing = new SynchList<T>;

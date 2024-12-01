@@ -52,16 +52,16 @@ class Instruction {
 //	times concurrently -- one for each thread executing user code.
 //----------------------------------------------------------------------
 void Machine::Run() {
-    Instruction *instr = new Instruction;  // storage for decoded instruction
-    if (debug->IsEnabled('m')) {
+    Instruction *instr = new Instruction;  // storage for decoded instruction 
+    if (debug->IsEnabled('m')) {// if  debug mode IsEnabled('m')，output thread and time
         cout << "Starting program in thread: " << kernel->currentThread->getName();
         cout << ", at time: " << kernel->stats->totalTicks << "\n";
     }
-    kernel->interrupt->setStatus(UserMode);
-    for (;;) {
+    kernel->interrupt->setStatus(UserMode);//interrupt to usermode
+    for (;;) {// check still
         DEBUG(dbgTraCode, "In Machine::Run(), into OneInstruction "
                               << "== Tick " << kernel->stats->totalTicks << " ==");
-        OneInstruction(instr);
+        OneInstruction(instr);// make OneInstruction by instruction
         DEBUG(dbgTraCode, "In Machine::Run(), return from OneInstruction  "
                               << "== Tick " << kernel->stats->totalTicks << " ==");
 
@@ -72,7 +72,7 @@ void Machine::Run() {
                               << "== Tick " << kernel->stats->totalTicks << " ==");
         if (singleStep && (runUntilTime <= kernel->stats->totalTicks))
             Debugger();
-    }
+    }//why not just use a while(1) loop?
 }
 
 //----------------------------------------------------------------------
@@ -139,7 +139,7 @@ void Machine::OneInstruction(Instruction *instr) {
         struct OpString *str = &opStrings[instr->opCode];
         char buf[80];
 
-        ASSERT(instr->opCode <= MaxOpcode);
+        ASSERT(instr->opCode <= MaxOpcode);//make sure that opcode is a valid number
         cout << "At PC = " << registers[PCReg];
         sprintf(buf, str->format, TypeToReg(str->args[0], instr),
                 TypeToReg(str->args[1], instr), TypeToReg(str->args[2], instr));
@@ -662,7 +662,7 @@ void Machine::OneInstruction(Instruction *instr) {
 
         case OP_SYSCALL:
             DEBUG(dbgTraCode, "In Machine::OneInstruction, RaiseException(SyscallException, 0), " << kernel->stats->totalTicks);
-            RaiseException(SyscallException, 0);
+            RaiseException(SyscallException, 0);// 觸發系統調用異常，進入系統調用處理程序
             return;
 
         case OP_XOR:

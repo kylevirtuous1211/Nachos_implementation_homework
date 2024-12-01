@@ -31,7 +31,7 @@
 //----------------------------------------------------------------------
 
 Scheduler::Scheduler() {
-    readyList = new List<Thread *>;
+    readyList = new SystemQueue();
     toBeDestroyed = NULL;
 }
 
@@ -166,4 +166,125 @@ void Scheduler::CheckToBeDestroyed() {
 void Scheduler::Print() {
     cout << "Ready list contents:\n";
     readyList->Apply(ThreadPrint);
+}
+
+void Scheduler::aging() {
+    readyList->Aging();
+}
+
+bool Scheduler::shouldPreempt() {
+    return readyList->ShouldPreempt();
+}
+
+////////////////////system queue//////////////
+
+Scheduler::SystemQueue::SystemQueue() :
+    L1 (new SortedList<Thread*>(Thread::compareTime)),
+    L2 (new SortedList<Thread*>(Thread::comparePriority)),
+    L3 ( new List<Thread*>()) {}
+
+Scheduler::SystemQueue::~SystemQueue() {
+    delete L1;
+    delete L2;
+    delete L3;
+}
+
+void Scheduler::SystemQueue::Append(Thread * thread) {
+    int level = getQueueLevel(thread);
+    switch(level) {
+        case Lv1:
+            L1->Insert(thread);
+            break;
+        case Lv2:  
+            L2->Insert(thread);
+            break;
+        case Lv3:
+            L3->Append(thread);
+            break;
+    }
+    DEBUG(dbgQueue, "[A] Tick [" 
+        << kernel->stats->totalTicks << "]: Thread [" 
+        << thread->getID() << "] is inserted into queue L[" 
+        << level << "]"); // print debug message
+}
+
+void Scheduler::SystemQueue::Apply(void (* callback)(Thread *)) {
+    L1->Apply(callback);
+    L2->Apply(callback);
+    L3->Apply(callback);
+}
+
+void Scheduler::SystemQueue::Aging() {
+    Apply(Thread::Aging);
+    PromoteThreads(L3, Lv3);
+    PromoteThreads(L2, Lv2);
+}
+
+bool Scheduler::SystemQueue::IsEmpty() {
+    return L1->IsEmpty() && L2->IsEmpty() && L3->IsEmpty();
+}
+
+Thread * Scheduler::SystemQueue::RemoveFront() {
+    Thread * t;
+    Level level;
+
+    if (!L1->IsEmpty()) {
+        t = L1->RemoveFront();
+        level = Lv1;
+    } else if (!L2->IsEmpty()) {
+        t = L2->RemoveFront();
+        level = Lv2;
+    } else {
+        t = L3->RemoveFront();
+        level = Lv3;
+    }
+    DEBUG(dbgQueue, "[B] Tick [" << kernel->stats->totalTicks 
+    << "]: Thread [" << t->getID() 
+    << "] is removed from queue L[" << level << "]");
+    
+    return t;
+}
+
+Scheduler::SystemQueue::Level Scheduler::SystemQueue::getQueueLevel(Thread * t) {
+    int priority = t->getPriority();
+    if (priority >= 100) {
+        return Lv1;
+    } else if (priority >= 50) {
+        return Lv2;
+    } else {
+        return Lv3;
+    }
+}
+
+void Scheduler::SystemQueue::PromoteThreads(List<Thread*> * fromQueue, Level level) {
+    ListIterator<Thread*> it(fromQueue);
+
+    while (!it.IsDone()) {
+        Thread * t = it.Item();
+        Level QL = getQueueLevel(t);
+        if (QL < level) {
+            fromQueue->Remove(t);
+            DEBUG(dbgQueue, "[Aging] Tick [" 
+              << kernel->stats->totalTicks << "]: Thread [" 
+              << t->getID() << "] promoted from L[" 
+              << level << "] to L[" << QL << "]");
+            Append(t);
+        } 
+        it.Next();
+    }
+}
+
+bool Scheduler::SystemQueue::ShouldPreempt() {
+    Thread * t = kernel->currentThread;
+    bool preempt = false;
+    // round robin
+    if (getQueueLevel(t) == Lv3)
+        preempt = true;
+    // if L1 is not empty
+    // 
+    else if (!L1->IsEmpty() && 
+    (getQueueLevel(t) == Lv2 || Thread::compareTime(t, L1->Front()) > 0)) {
+        preempt = true;
+    }
+    return preempt;
 }

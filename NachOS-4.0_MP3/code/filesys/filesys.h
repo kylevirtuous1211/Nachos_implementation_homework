@@ -32,7 +32,7 @@
 
 #ifndef FS_H
 #define FS_H
-
+#define MAX_OPEN_FILES 20
 #include "copyright.h"
 #include "debug.h"  //just for test!!!
 #include "openfile.h"
@@ -42,7 +42,6 @@
                      // calls to UNIX, until the real file system
                      // implementation is available
 typedef int OpenFileId;
-# define MAX_OPEN_FILES 20
 
 class FileSystem {
    public:
@@ -52,6 +51,7 @@ class FileSystem {
 
     bool Create(char *name) {
         int fileDescriptor = OpenForWrite(name);
+
         if (fileDescriptor == -1)
             return FALSE;
         Close(fileDescriptor);
@@ -65,62 +65,45 @@ class FileSystem {
         return new OpenFile(fileDescriptor);
     }
 
-      // The OpenAFile function is used for kernel open system call
+    //  The OpenAFile function is used for kernel open system call
     OpenFileId OpenAFile(char *name) {
-        // find available slot in openFileTable
-        for (OpenFileId id = 0; id < MAX_OPEN_FILES; id++) {
-            if (OpenFileTable[id] == NULL) {
-                int fileDescriptor = OpenForReadWrite(name, FALSE);
-                if (fileDescriptor == -1) {
-                    // can't open a file (full)
-                    return -1;
-                }
-                OpenFileTable[id] = new OpenFile(fileDescriptor);
-                return id;
+        // Check if the filename is valid
+        if (name == NULL || strlen(name) == 0) {
+            return -1; // Return -1 if the filename is invalid
+        }
+
+        // Try to open the file from the filesystem
+        OpenFile *file = Open(name);
+        
+        // If the file cannot be opened, return an error
+        if (file == NULL) {
+            return -1; // -1 indicates an error in opening the file
+        }
+        
+        int fileTableSize = MAX_OPEN_FILES; // Assuming MAX_OPEN_FILES defines the size of the file table;
+        for(int i=0;i<fileTableSize;i++){
+            if(OpenFileTable[i]==NULL){
+                OpenFileTable[i]= file;
+                return i;
             }
         }
-        // no availble slot
-        return -1;
+        
+        delete file; // Clean up file resource
+        return -1; // Return -1 if no slots are available
     }
-
+    /*
     int WriteFile(char *buffer, int size, OpenFileId id){
-        if (id < 0 || id >= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-            // is not valid ID
-            return -1;
-        }
-        int bytesWritten = OpenFileTable[id]->Write(buffer, size);
-
-        if (bytesWritten < 0) {
-            return -1;
-        }
-	    return bytesWritten;
     }
-    
     int ReadFile(char *buffer, int size, OpenFileId id){
-        if (id < 0 || id >= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-            // is not valid ID
-            return -1;
-        }
-        int bytesRead = OpenFileTable[id]->Read(buffer, size);
-        if (bytesRead < 0) {
-            return -1;
-        }
-        return bytesRead;
     }
     int CloseFile(OpenFileId id){
-        if (id < 0 || id >= MAX_OPEN_FILES || OpenFileTable[id] == NULL) {
-            // is not valid ID
-            return -1;
-        }
-        delete OpenFileTable[id];
-        OpenFileTable[id] = NULL;
-        return 1; // delete successful
     }
+    */
     
 
     bool Remove(char *name) { return Unlink(name) == 0; }
 
-    OpenFile *OpenFileTable[MAX_OPEN_FILES];
+    OpenFile *OpenFileTable[20];
 };
 
 #else  // FILESYS

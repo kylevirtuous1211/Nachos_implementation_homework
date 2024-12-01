@@ -32,12 +32,39 @@ class Scheduler {
                                 // running needs to be deleted
     void Print();               // Print contents of ready list
 
-    // SelfTest for scheduler is implemented in class Thread
+    void aging();
 
+    bool shouldPreempt();
+
+    // SelfTest for scheduler is implemented in class Thread
+    class SystemQueue {
+      public:
+         enum Level {
+            Lv1, Lv2, Lv3
+         };
+         SystemQueue();
+         ~SystemQueue();
+         void Append(Thread* thread);
+         bool IsEmpty();
+         Thread * RemoveFront();
+         Thread * Front();
+         void Apply(void (* callback)(Thread *));
+         void Aging();
+         bool ShouldPreempt();
+         void PromoteThreads(List<Thread*> * fromQueue, Level level);
+
+     private:
+         // preemptive SJF (priority 100-149)
+         SortedList<Thread*> *L1;
+         // non-preemptive (priority 50-99)
+         SortedList<Thread*> *L2;
+         // round robin per 100 ticks (priority 0-49)
+         List<Thread*> *L3;
+         Level getQueueLevel(Thread * t);
+    };
    private:
-    List<Thread*>* readyList;  // queue of threads that are ready to run,
-                               // but not running
-    Thread* toBeDestroyed;     // finishing thread to be destroyed
+      SystemQueue * readyList;
+      Thread* toBeDestroyed;     // finishing thread to be destroyed
                                // by the next thread that runs
 };
 

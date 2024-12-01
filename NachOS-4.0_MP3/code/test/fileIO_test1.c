@@ -8,6 +8,7 @@ int main(void) {
     if (success != 1)
         MSG("Failed on creating file");
     fid = Open("file1.test");
+
     if (fid < 0)
         MSG("Failed on opening file");
 

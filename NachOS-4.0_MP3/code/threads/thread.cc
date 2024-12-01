@@ -34,13 +34,24 @@ const int STACK_FENCEPOST = 0xdedbeef;
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char *threadName, int threadID) {
+Thread::OrderManager::OrderManager(Thread * t, int initPriority) :
+    thread(t),
+    priority(initPriority),
+    init_priority(initPriority),
+    remainBurstTime(0),
+    currentBurstTime(0),
+    lastBurstTime(0),
+    tick_cache(kernel->stats->systemTicks) {}
+
+
+Thread::Thread(char *threadName, int threadID, int initPriority) {
     ID = threadID;
     name = threadName;
     isExec = false;
     stackTop = NULL;
     stack = NULL;
-    status = JUST_CREATED;
+    orderManager = new OrderManager(this, initPriority);
+    status = NEW;
     for (int i = 0; i < MachineStateSize; i++) {
         machineState[i] = NULL;  // not strictly necessary, since
                                  // new thread ignores contents
@@ -63,6 +74,7 @@ Thread::Thread(char *threadName, int threadID) {
 
 Thread::~Thread() {
     DEBUG(dbgThread, "Deleting thread: " << name);
+    delete orderManager;
     ASSERT(this != kernel->currentThread);
     if (stack != NULL)
         DeallocBoundedArray((char *)stack, StackSize * sizeof(int));
@@ -163,7 +175,7 @@ void Thread::Begin() {
 //	are disabled.
 //----------------------------------------------------------------------
 
-
+//
 void Thread::Finish() {
     (void)kernel->interrupt->SetLevel(IntOff);
     ASSERT(this == kernel->currentThread);
@@ -242,7 +254,11 @@ void Thread::Sleep(bool finishing) {
     DEBUG(dbgThread, "Sleeping thread: " << name);
     DEBUG(dbgTraCode, "In Thread::Sleep, Sleeping thread: " << name << ", " << kernel->stats->totalTicks);
 
-    status = BLOCKED;
+    if (finishing) {
+        setStatus(TERMINATED);
+    } else {
+        setStatus(WAITING);
+    }
     // cout << "debug Thread::Sleep " << name << "wait for Idle\n";
     while ((nextThread = kernel->scheduler->FindNextToRun()) == NULL) {
         kernel->interrupt->Idle();  // no one to run, wait for an interrupt
@@ -412,9 +428,131 @@ SimpleThread(int which) {
 void Thread::SelfTest() {
     DEBUG(dbgThread, "Entering Thread::SelfTest");
 
-    Thread *t = new Thread("forked thread", 1);
+    Thread *t = new Thread("forked thread", 1, INIT_PRIORITY);
 
     t->Fork((VoidFunctionPtr)SimpleThread, (void *)1);
     kernel->currentThread->Yield();
     SimpleThread(0);
 }
+
+void Thread::setStatus(ThreadStatus st, Thread * last) {
+    if (st == READY) {
+        switch(status) {
+            case NEW:
+                orderManager->newToReady();
+                break;
+            case RUNNING:
+                orderManager->runToReady();
+                break;
+            case WAITING:
+                orderManager->waitToReady();
+                break;
+            default:
+                ASSERT(FALSE);
+        }
+    } else if (st == RUNNING) {
+        ASSERT(status == READY);
+        orderManager->readyToRun(last);
+    } else if (st == WAITING) {
+        ASSERT(status == RUNNING);
+        orderManager->runToWait();
+    } else if (st == TERMINATED) {
+        ASSERT(status == RUNNING);
+        orderManager->runToTerminated();
+    }
+    status = st;
+}
+int Thread::compareTime(Thread* t1, Thread* t2) {
+    ASSERT(t1->status == READY && t2->status == READY || 
+    t1->status == READY && t2->status == RUNNING ||
+    t1->status == RUNNING && t2->status == READY);
+
+    return static_cast<int> (t1->orderManager->getRemainTime() - t2->orderManager->getRemainTime());
+}
+
+int Thread::comparePriority(Thread* t1, Thread* t2) {
+    ASSERT(t1->status == READY && t2->status == READY || 
+    t1->status == READY && t2->status == RUNNING ||
+    t1->status == RUNNING && t2->status == READY);
+
+    return static_cast<int> (t1->orderManager->getPriority() - t2->orderManager->getPriority());
+}
+
+void Thread::Aging(Thread* t) {
+    t->orderManager->aging();
+}
+
+/////////////// OrderManager ///////////////
+void Thread::OrderManager::leaveRun() {
+    int currTick = kernel->stats->totalTicks;
+    currentBurstTime += currTick - tick_cache;
+    tick_cache = currTick;
+    lastBurstTime = currentBurstTime;
+}
+
+void Thread::OrderManager::runToWait() {
+    leaveRun();
+    double oldRemainBurstTime = remainBurstTime;
+    if (currentBurstTime) {
+        remainBurstTime = 0.5 * currentBurstTime + 0.5 * remainBurstTime;
+    }
+    DEBUG(dbgQueue, "[D] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] update  \
+    approximate burst time, from: ["<< oldRemainBurstTime << "], add [" << currentBurstTime << "], to [" << remainBurstTime << "]");
+
+    currentBurstTime = 0; // reset current burst time
+}
+
+void Thread::OrderManager::readyToRun(Thread * last) {
+    tick_cache = kernel->stats->totalTicks;
+    if (last) {
+        DEBUG(dbgQueue, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] is now selected for execution,\
+        thread [" << last->getID() << "] is replaced, and it has executed [" << last->orderManager->lastBurstTime << "] ticks");
+    } else {
+        DEBUG(dbgQueue, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] (main thread) starts its execution");
+    }
+}
+
+void Thread::OrderManager::toReady() {
+    tick_cache = kernel->stats->totalTicks;
+    priority = init_priority; // reset the priority
+}
+
+void Thread::OrderManager::setPriority(int priority) {
+    if (this->priority != priority) {
+        DEBUG(dbgQueue, "[C] Tick [" << kernel->stats->totalTicks 
+            << "]: Thread [" << thread->getID()
+            << "] changes its priority from [" 
+            << this->priority << "] to [" << priority << "]");
+        this->priority = priority;
+    }
+}
+
+void Thread::OrderManager::runToReady() {
+    leaveRun();
+    toReady();
+}
+
+void Thread::OrderManager::waitToReady() {toReady();}
+void Thread::OrderManager::newToReady() {toReady();}
+void Thread::OrderManager::runToTerminated() {leaveRun();}
+
+int Thread::OrderManager::getPriority() {return priority;}
+
+double Thread::OrderManager::getRemainTime() {
+    if (thread->status == RUNNING) {
+        return remainBurstTime - (currentBurstTime + kernel->stats->totalTicks - tick_cache);
+    } else {
+        return remainBurstTime - currentBurstTime;
+    }
+}
+
+void Thread::OrderManager::aging() {
+    ASSERT(thread->status == READY);
+
+    int age = (kernel->stats->totalTicks - tick_cache)/AGING_TICK;
+    if (age) {
+        tick_cache += age * AGING_TICK; // advance tick_cache
+        setPriority(min(priority+10*age, 149));
+    }
+}
+

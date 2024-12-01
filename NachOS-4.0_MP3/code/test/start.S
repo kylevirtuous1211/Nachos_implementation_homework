@@ -41,7 +41,38 @@ __start:
  * 	convention on the MIPS.
  * -------------------------------------------------------------
  */
+     .globl Open
+    .ent    Open
+Open:
+    addiu   $2, $0, SC_Open	# Load the system call number for Read into register $2
+    syscall                 # Trigger the system call
+    j       $31             # Return to the caller
+    .end    Open
 
+ 	.globl Read
+    .ent    Read
+Read:
+    addiu   $2, $0, SC_Read   
+    syscall                   
+    j       $31               
+    .end    Read
+	
+    .globl Write
+    .ent    Write
+Write:
+    addiu   $2, $0, SC_Write  
+    syscall                   
+    j       $31               
+    .end    Write
+
+	.globl Close
+	.ent    Close
+Close: 
+	addiu $2, $0, SC_Close
+	syscall 
+	j 	$31 
+	.end Close
+	
 	.globl Halt
 	.ent	Halt
 Halt:
@@ -50,13 +81,13 @@ Halt:
 	j	$31
 	.end Halt
 
-        .globl  PrintInt
-        .ent     PrintInt
+	.globl  PrintInt
+	.ent     PrintInt
 PrintInt:
-        addiu $2,$0,SC_PrintInt
-        syscall
-        j       $31
-        .end  PrintInt
+	addiu $2,$0,SC_PrintInt
+	syscall
+	j       $31
+	.end  PrintInt
 
 	.globl MSG
 	.ent   MSG
@@ -123,7 +154,7 @@ Remove:
 	.end Remove
 
 	.globl Seek
-	.ent Seek
+	.ent	Seek
 Seek:
 	addiu $2,$0,SC_Seek
 	syscall
@@ -162,37 +193,6 @@ ThreadJoin:
 	j 	$31
 	.end ThreadJoin
 
-		.globl Open
-		.ent Open
-Open:
-        addiu $2, $0, SC_Open
-        syscall
-        j       $31
-        .end Open
-
-        .globl Write
-        .ent    Write
-Write:
-        addiu $2, $0, SC_Write
-        syscall
-        j       $31
-        .end Write
-
-        .globl Read
-        .ent    Read
-Read:
-        addiu $2, $0, SC_Read
-        syscall
-        j       $31
-        .end Read
-
-        .globl Close
-        .ent    Close
-Close:
-        addiu $2, $0, SC_Close
-        syscall
-        j       $31
-        .end Close
 
 /* dummy function to keep gcc happy */
         .globl  __main

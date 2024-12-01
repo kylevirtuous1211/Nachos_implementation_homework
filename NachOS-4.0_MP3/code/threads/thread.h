@@ -57,10 +57,11 @@
 const int StackSize = (8 * 1024);  // in words
 
 // Thread state
-enum ThreadStatus { JUST_CREATED,
-                    RUNNING,
+enum ThreadStatus { NEW,
                     READY,
-                    BLOCKED,
+                    RUNNING,
+                    WAITING,
+                    TERMINATED,
                     ZOMBIE };
 
 // The following class defines a "thread control block" -- which
@@ -82,14 +83,42 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
    public:
-    Thread(char *debugName, int threadID);  // initialize a Thread
+    Thread(char *debugName, int threadID, int priority);  // initialize a Thread
     ~Thread();                              // deallocate a Thread
                                             // NOTE -- thread being deleted
                                             // must not be running when delete
                                             // is called
+    class OrderManager { // for changing thread states
+    public:
+        static const int AGING_TICK = 1500;
+        OrderManager(Thread *t, int initPriority);
+        void newToReady();
+        // collect information when the thread start runniing
+        void readyToRun(Thread *lastThread); 
+        
+        void runToReady();
+        void runToWait();
+        void waitToReady();
+        void runToTerminated();
+        // getter to protect private member variables
+        double getRemainTime(); // remained execution time needed (approximation)
+        int getPriority(); // get priority of current thread
+        void aging(); // aging for priority
+    private:
+        Thread *thread;
+        double remainBurstTime;
+        double currentBurstTime;
+        double lastBurstTime;
+        int priority;
+        const int init_priority;
+        int tick_cache;
+        void setPriority(int priority);
+        void toReady();
+        void leaveRun();
+    };
 
     // basic thread operations
-
+    int getPriority() { return orderManager->getPriority(); }
     void Fork(VoidFunctionPtr func, void *arg);
     // Make thread run (*func)(arg)
     void Yield();                // Relinquish the CPU if any
@@ -100,7 +129,8 @@ class Thread {
     void Finish();               // The thread is done executing
 
     void CheckOverflow();  // Check if thread stack has overflowed
-    void setStatus(ThreadStatus st) { status = st; }
+    // change thread status using this method
+    void setStatus(ThreadStatus st, Thread * last = NULL);
     ThreadStatus getStatus() { return (status); }
     char *getName() { return (name); }
 
@@ -109,6 +139,9 @@ class Thread {
     bool getIsExec() { return (isExec); }
     void Print() { cout << name; }
     void SelfTest();  // test whether thread impl is working
+    static int compareTime (Thread* t1, Thread* t2);
+    static int comparePriority (Thread* t1, Thread* t2);
+    static void Aging(Thread* t);
 
    private:
     // some of the private data for this class is listed above
@@ -121,6 +154,7 @@ class Thread {
     int ID;
     bool isExec;  // Is this thread an user executable thread
     void StackAllocate(VoidFunctionPtr func, void *arg);
+    OrderManager * orderManager;
     // Allocate a stack for thread.
     // Used internally by Fork()
 
@@ -135,6 +169,7 @@ class Thread {
     void RestoreUserState();  // restore user-level register state
 
     AddrSpace *space;  // User code this thread is running.
+
 };
 
 // external function, dummy routine whose sole job is to call Thread::Print
@@ -154,3 +189,22 @@ void SWITCH(Thread *oldThread, Thread *newThread);
 }
 
 #endif  // THREAD_H
+
+double Thread::OrderManager::getRemainTime() {
+    double calculatedRemain;
+    if (thread->status == RUNNING) {
+        // Because it's still running, we need to add the current burst time
+        calculatedRemain = remainBurstTime - (currentBurstTime + kernel->stats->totalTicks - tick_cache);
+    } else {
+        calculatedRemain = remainBurstTime - currentBurstTime;
+    }
+
+    // Ensure remaining time is not negative
+    if (calculatedRemain < 0) {
+        DEBUG(dbgQueue, "Warning: Negative remaining time for Thread [" << thread->getID() << "]");
+        calculatedRemain = 0;
+    }
+
+    return calculatedRemain;
+}
+

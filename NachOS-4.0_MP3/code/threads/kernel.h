@@ -26,6 +26,19 @@ class SynchConsoleOutput;
 class SynchDisk;
 
 typedef int OpenFileId;
+static int INIT_PRIORITY = 0;
+
+class Execfile {
+   public:
+    Execfile() : filename(NULL), threadPriority(INIT_PRIORITY) {}
+
+    Execfile(char *name, int priority) {
+        filename = name;
+        threadPriority = priority;
+    }
+    char *filename;
+    int threadPriority;
+};
 
 class Kernel {
    public:
@@ -37,7 +50,7 @@ class Kernel {
                         // from constructor because
                         // refers to "kernel" as a global
     void ExecAll();
-    int Exec(char *name);
+    int Exec(char *name, int priority);
     void ThreadSelfTest();  // self test of threads and synchronization
 
     void ConsoleTest();  // interactive console self test
@@ -74,11 +87,12 @@ class Kernel {
 
    private:
     Thread *t[10];
+    Execfile ExecfileInfo[10];
     char *execfile[10];
     int execfileNum;
     int threadNum;
     bool randomSlice;    // enable pseudo-random time slicing
-    bool debugUserProg;  // single step user program
+    bool debugUserProg;  // single step usefr program
     double reliability;  // likelihood messages are dropped
     char *consoleIn;     // file to read console input from
     char *consoleOut;    // file to send console output to

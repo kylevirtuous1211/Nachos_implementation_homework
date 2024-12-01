@@ -98,23 +98,31 @@ void SynchConsoleOutput::PutChar(char ch) {
 }
 
 void SynchConsoleOutput::PutInt(int value) {
-    char str[15];
-    int idx = 0;
-    // sprintf(str, "%d\n\0", value);  the true one
-    sprintf(str, "%d\n\0", value);  // simply for trace code
-    lock->Acquire();
+    char str[15];    // 定義字元陣列，用來存放轉換後的字串
+    int idx = 0;     // 初始化索引變數
+
+    // sprintf將整數轉換成字元串，並將其存入str。最後加上'\n'和字串結束符'\0'
+    sprintf(str, "%d\n\0", value);  
+
+    lock->Acquire();  // 獲取鎖，保證同步，只有獲取鎖的執行緒可以進入臨界區
     do {
         DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, into consoleOutput->PutChar, " << kernel->stats->totalTicks);
-        consoleOutput->PutChar(str[idx]);
-        DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, return from consoleOutput->PutChar, " << kernel->stats->totalTicks);
-        idx++;
+        
+        consoleOutput->PutChar(str[idx]);  // 將字元串中的當前字元輸出到控制台
 
+        DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, return from consoleOutput->PutChar, " << kernel->stats->totalTicks);
+        
+        idx++;  // 索引增加，處理下一個字元
         DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, into waitFor->P(), " << kernel->stats->totalTicks);
-        waitFor->P();
-        DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, return form  waitFor->P(), " << kernel->stats->totalTicks);
-    } while (str[idx] != '\0');
-    lock->Release();
+        
+        waitFor->P();  // 讓執行緒等待，直到處理完字元輸出
+
+        DEBUG(dbgTraCode, "In SynchConsoleOutput::PutChar, return form waitFor->P(), " << kernel->stats->totalTicks);
+    } while (str[idx] != '\0');  // 持續處理字元，直到遇到字串結束符'\0'
+
+    lock->Release();  // 釋放鎖，允許其他執行緒進入臨界區
 }
+
 
 //----------------------------------------------------------------------
 // SynchConsoleOutput::CallBack

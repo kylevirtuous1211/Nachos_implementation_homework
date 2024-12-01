@@ -35,33 +35,13 @@ int SysCreate(char *filename) {
     return kernel->fileSystem->Create(filename);
 }
 
-
 // When you finish the function "OpenAFile", you can remove the comment below.
 
 OpenFileId SysOpen(char *name)
 {
-    DEBUG(dbgSys, "In ksyscall.h:OpenFileId, into fileSystem->OpenAFile, " << kernel->stats->totalTicks);
+    //return value
+    // 0-20: sucess
     return kernel->fileSystem->OpenAFile(name);
-    DEBUG(dbgTraCode, "return from ksyscall.h:OpenFileId, into fileSystem->OpenAFile, " << kernel->stats->totalTicks);
 }
-
-int SysWrite(char *buffer, int size, OpenFileId id)
-{
-	return kernel->fileSystem->WriteFile(buffer, size, id);
-}
-
-int SysRead(char *buffer, int size, OpenFileId id)
-{
-    return kernel->fileSystem->ReadFile(buffer, size, id);
-}
-
-int SysClose(OpenFileId id)
-{
-	return kernel->fileSystem->CloseFile(id);
-}
-
-
-
-
 
 #endif /* ! __USERPROG_KSYSCALL_H__ */

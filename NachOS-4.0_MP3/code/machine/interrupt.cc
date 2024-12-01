@@ -143,31 +143,29 @@ Interrupt::SetLevel(IntStatus now) {
 //		a user instruction is executed
 //----------------------------------------------------------------------
 void Interrupt::OneTick() {
-    MachineStatus oldStatus = status;
-    Statistics *stats = kernel->stats;
+    MachineStatus oldStatus = status; // 儲存當前的機器狀態
+    Statistics *stats = kernel->stats; // 獲取系統統計資訊
 
     // advance simulated time
-    if (status == SystemMode) {
-        stats->totalTicks += SystemTick;
-        stats->systemTicks += SystemTick;
-    } else {
-        stats->totalTicks += UserTick;
-        stats->userTicks += UserTick;
+    if (status == SystemMode) { // 如果目前是系統模式
+        stats->totalTicks += SystemTick; // 增加總時鐘
+        stats->systemTicks += SystemTick; // 增加系統時鐘
+    } else { // 如果是使用者模式
+        stats->totalTicks += UserTick; // 增加總時鐘
+        stats->userTicks += UserTick; // 增加使用者時鐘
     }
-    DEBUG(dbgInt, "== Tick " << stats->totalTicks << " ==");
+    DEBUG(dbgInt, "== Tick " << stats->totalTicks << " =="); // 調試輸出當前總時鐘
 
     // check any pending interrupts are now ready to fire
-    ChangeLevel(IntOn, IntOff);  // first, turn off interrupts
-                                 // (interrupt handlers run with
-                                 // interrupts disabled)
-    CheckIfDue(FALSE);           // check for pending interrupts
-    ChangeLevel(IntOff, IntOn);  // re-enable interrupts
-    if (yieldOnReturn) {         // if the timer device handler asked
-                                 // for a context switch, ok to do it now
-        yieldOnReturn = FALSE;
-        status = SystemMode;  // yield is a kernel routine
-        kernel->currentThread->Yield();
-        status = oldStatus;
+    ChangeLevel(IntOn, IntOff);  // 首先，關閉中斷 (中斷處理程序在禁用中斷的情況下運行)
+    CheckIfDue(FALSE);           // 檢查是否有待處理的中斷
+    ChangeLevel(IntOff, IntOn);  // 重新啟用中斷
+
+    if (yieldOnReturn) {         // 如果計時器設備處理程序要求上下文切換，現在可以執行
+        yieldOnReturn = FALSE; // 重置上下文切換請求
+        status = SystemMode;  // 切換到系統模式以執行上下文切換
+        kernel->currentThread->Yield(); // 讓當前線程讓出 CPU
+        status = oldStatus; // 恢復之前的機器狀態
     }
 }
 

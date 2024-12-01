@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  nachos4:
+    image: nachos4
+    build:
+      context: .
+      dockerfile: ./Dockerfile
