@@ -205,7 +205,7 @@ void Scheduler::SystemQueue::Append(Thread * thread) {
     DEBUG(dbgQueue, "[A] Tick [" 
         << kernel->stats->totalTicks << "]: Thread [" 
         << thread->getID() << "] is inserted into queue L[" 
-        << level << "]"); // print debug message
+        << level+1 << "]"); // print debug message
 }
 
 void Scheduler::SystemQueue::Apply(void (* callback)(Thread *)) {
@@ -240,7 +240,7 @@ Thread * Scheduler::SystemQueue::RemoveFront() {
     }
     DEBUG(dbgQueue, "[B] Tick [" << kernel->stats->totalTicks 
     << "]: Thread [" << t->getID() 
-    << "] is removed from queue L[" << level << "]");
+    << "] is removed from queue L[" << level+1 << "]");
     
     return t;
 }
@@ -267,7 +267,7 @@ void Scheduler::SystemQueue::PromoteThreads(List<Thread*> * fromQueue, Level lev
             DEBUG(dbgQueue, "[Aging] Tick [" 
               << kernel->stats->totalTicks << "]: Thread [" 
               << t->getID() << "] promoted from L[" 
-              << level << "] to L[" << QL << "]");
+              << level+1 << "] to L[" << QL+1 << "]");
             Append(t);
         } 
         it.Next();

@@ -475,7 +475,7 @@ int Thread::comparePriority(Thread* t1, Thread* t2) {
     t1->status == READY && t2->status == RUNNING ||
     t1->status == RUNNING && t2->status == READY);
 
-    return static_cast<int> (t1->orderManager->getPriority() - t2->orderManager->getPriority());
+    return static_cast<int> (t2->orderManager->getPriority() - t1->orderManager->getPriority());
 }
 
 void Thread::Aging(Thread* t) {
@@ -496,8 +496,7 @@ void Thread::OrderManager::runToWait() {
     if (currentBurstTime) {
         remainBurstTime = 0.5 * currentBurstTime + 0.5 * remainBurstTime;
     }
-    DEBUG(dbgQueue, "[D] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] update  \
-    approximate burst time, from: ["<< oldRemainBurstTime << "], add [" << currentBurstTime << "], to [" << remainBurstTime << "]");
+    DEBUG(dbgQueue, "[D] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] update approximate burst time, from: ["<< oldRemainBurstTime << "], add [" << currentBurstTime << "], to [" << remainBurstTime << "]");
 
     currentBurstTime = 0; // reset current burst time
 }

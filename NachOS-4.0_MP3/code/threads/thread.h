@@ -190,21 +190,4 @@ void SWITCH(Thread *oldThread, Thread *newThread);
 
 #endif  // THREAD_H
 
-double Thread::OrderManager::getRemainTime() {
-    double calculatedRemain;
-    if (thread->status == RUNNING) {
-        // Because it's still running, we need to add the current burst time
-        calculatedRemain = remainBurstTime - (currentBurstTime + kernel->stats->totalTicks - tick_cache);
-    } else {
-        calculatedRemain = remainBurstTime - currentBurstTime;
-    }
-
-    // Ensure remaining time is not negative
-    if (calculatedRemain < 0) {
-        DEBUG(dbgQueue, "Warning: Negative remaining time for Thread [" << thread->getID() << "]");
-        calculatedRemain = 0;
-    }
-
-    return calculatedRemain;
-}
 

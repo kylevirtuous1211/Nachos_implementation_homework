@@ -98,14 +98,16 @@ Kernel::Kernel(int argc, char **argv) {
 //----------------------------------------------------------------------
 
 void Kernel::Initialize() {
+    stats = new Statistics(); // collect statistics considering main thread
+
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state.
 
     currentThread = new Thread("main", threadNum++, INIT_PRIORITY);
+    currentThread->setStatus(READY);
     currentThread->setStatus(RUNNING);
 
-    stats = new Statistics();        // collect statistics
     interrupt = new Interrupt;       // start up interrupt handling
     scheduler = new Scheduler();     // initialize the ready queue
     alarm = new Alarm(randomSlice);  // start up time slicing
@@ -259,7 +261,7 @@ void ForkExecute(Thread *t) {
 
 void Kernel::ExecAll() {
     for (int i = 1; i <= execfileNum; i++) {
-        int a = Exec(execfile[i], ExecfileInfo[i].threadPriority);
+        int a = Exec(ExecfileInfo[i].filename, ExecfileInfo[i].threadPriority);
     }
     currentThread->Finish();
     // Kernel::Exec();
