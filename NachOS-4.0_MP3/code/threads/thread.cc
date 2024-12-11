@@ -34,14 +34,14 @@ const int STACK_FENCEPOST = 0xdedbeef;
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::OrderManager::OrderManager(Thread * t, int initPriority) :
+Thread::ThreadStateController::ThreadStateController(Thread * t, int initPriority) :
     thread(t),
     priority(initPriority),
     init_priority(initPriority),
     remainBurstTime(0),
     currentBurstTime(0),
     lastBurstTime(0),
-    tick_cache(kernel->stats->systemTicks) {}
+    tick_cache(kernel->stats->totalTicks) {}
 
 
 Thread::Thread(char *threadName, int threadID, int initPriority) {
@@ -50,7 +50,7 @@ Thread::Thread(char *threadName, int threadID, int initPriority) {
     isExec = false;
     stackTop = NULL;
     stack = NULL;
-    orderManager = new OrderManager(this, initPriority);
+    orderManager = new ThreadStateController(this, initPriority);
     status = NEW;
     for (int i = 0; i < MachineStateSize; i++) {
         machineState[i] = NULL;  // not strictly necessary, since
@@ -462,6 +462,7 @@ void Thread::setStatus(ThreadStatus st, Thread * last) {
     }
     status = st;
 }
+
 int Thread::compareTime(Thread* t1, Thread* t2) {
     ASSERT(t1->status == READY && t2->status == READY || 
     t1->status == READY && t2->status == RUNNING ||
@@ -482,26 +483,50 @@ void Thread::Aging(Thread* t) {
     t->orderManager->aging();
 }
 
-/////////////// OrderManager ///////////////
-void Thread::OrderManager::leaveRun() {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController
+// Initialize a thread state controller, which manages the state
+// and scheduling information of a thread.
+//
+//"t" is the thread associated with this controller.
+//"initPriority" is the initial priority of the thread.
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::leaveRun
+// Update the burst time and tick cache when a thread leaves the running state.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::leaveRun() {
     int currTick = kernel->stats->totalTicks;
     currentBurstTime += currTick - tick_cache;
     tick_cache = currTick;
     lastBurstTime = currentBurstTime;
 }
 
-void Thread::OrderManager::runToWait() {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::runToWait
+// Update the burst time and tick cache when a thread transitions
+// from the running state to the waiting state.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::runToWait() {
     leaveRun();
     double oldRemainBurstTime = remainBurstTime;
-    if (currentBurstTime) {
-        remainBurstTime = 0.5 * currentBurstTime + 0.5 * remainBurstTime;
-    }
+
+    remainBurstTime = 0.5 * currentBurstTime + 0.5 * remainBurstTime;
+
     DEBUG(dbgQueue, "[D] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] update approximate burst time, from: ["<< oldRemainBurstTime << "], add [" << currentBurstTime << "], to [" << remainBurstTime << "]");
 
-    currentBurstTime = 0; // reset current burst time
+    currentBurstTime = 0; // reset current burst time T
 }
 
-void Thread::OrderManager::readyToRun(Thread * last) {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::readyToRun
+// Update the tick cache and log the transition when a thread
+// transitions from the ready state to the running state.
+//
+//"last" is the thread that was previously running.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::readyToRun(Thread * last) {
     tick_cache = kernel->stats->totalTicks;
     if (last) {
         DEBUG(dbgQueue, "[E] Tick [" << kernel->stats->totalTicks << "]: Thread [" << thread->getID() << "] is now selected for execution,\
@@ -511,12 +536,23 @@ void Thread::OrderManager::readyToRun(Thread * last) {
     }
 }
 
-void Thread::OrderManager::toReady() {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::toReady
+// Reset the priority and update the tick cache when a thread
+// transitions to the ready state.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::toReady() {
     tick_cache = kernel->stats->totalTicks;
     priority = init_priority; // reset the priority
 }
 
-void Thread::OrderManager::setPriority(int priority) {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::setPriority
+// Set the priority of the thread and log the change.
+//
+//"priority" is the new priority to be set.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::setPriority(int priority) {
     if (this->priority != priority) {
         DEBUG(dbgQueue, "[C] Tick [" << kernel->stats->totalTicks 
             << "]: Thread [" << thread->getID()
@@ -526,18 +562,18 @@ void Thread::OrderManager::setPriority(int priority) {
     }
 }
 
-void Thread::OrderManager::runToReady() {
+void Thread::ThreadStateController::runToReady() {
     leaveRun();
     toReady();
 }
 
-void Thread::OrderManager::waitToReady() {toReady();}
-void Thread::OrderManager::newToReady() {toReady();}
-void Thread::OrderManager::runToTerminated() {leaveRun();}
+void Thread::ThreadStateController::waitToReady() {toReady();}
+void Thread::ThreadStateController::newToReady() {toReady();}
+void Thread::ThreadStateController::runToTerminated() {leaveRun();}
 
-int Thread::OrderManager::getPriority() {return priority;}
+int Thread::ThreadStateController::getPriority() {return priority;}
 
-double Thread::OrderManager::getRemainTime() {
+double Thread::ThreadStateController::getRemainTime() {
     if (thread->status == RUNNING) {
         return remainBurstTime - (currentBurstTime + kernel->stats->totalTicks - tick_cache);
     } else {
@@ -545,7 +581,14 @@ double Thread::OrderManager::getRemainTime() {
     }
 }
 
-void Thread::OrderManager::aging() {
+//----------------------------------------------------------------------
+// Thread::ThreadStateController::aging
+// Increase the priority of the thread based on the aging mechanism
+// to prevent starvation.
+//
+//NOTE: This function assumes the thread is in the ready state.
+//----------------------------------------------------------------------
+void Thread::ThreadStateController::aging() {
     ASSERT(thread->status == READY);
 
     int age = (kernel->stats->totalTicks - tick_cache)/AGING_TICK;

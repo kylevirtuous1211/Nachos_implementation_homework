@@ -37,13 +37,13 @@ class Scheduler {
     bool shouldPreempt();
 
     // SelfTest for scheduler is implemented in class Thread
-    class SystemQueue {
+    class MultilevelThreadQueue {
       public:
          enum Level {
             Lv1, Lv2, Lv3
          };
-         SystemQueue();
-         ~SystemQueue();
+         MultilevelThreadQueue();
+         ~MultilevelThreadQueue();
          void Append(Thread* thread);
          bool IsEmpty();
          Thread * RemoveFront();
@@ -63,7 +63,7 @@ class Scheduler {
          Level getQueueLevel(Thread * t);
     };
    private:
-      SystemQueue * readyList;
+      MultilevelThreadQueue * readyList;
       Thread* toBeDestroyed;     // finishing thread to be destroyed
                                // by the next thread that runs
 };

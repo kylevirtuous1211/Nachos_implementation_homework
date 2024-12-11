@@ -88,10 +88,10 @@ class Thread {
                                             // NOTE -- thread being deleted
                                             // must not be running when delete
                                             // is called
-    class OrderManager { // for changing thread states
+    class ThreadStateController { // for changing thread states
     public:
         static const int AGING_TICK = 1500;
-        OrderManager(Thread *t, int initPriority);
+        ThreadStateController(Thread *t, int initPriority);
         void newToReady();
         // collect information when the thread start runniing
         void readyToRun(Thread *lastThread); 
@@ -154,7 +154,7 @@ class Thread {
     int ID;
     bool isExec;  // Is this thread an user executable thread
     void StackAllocate(VoidFunctionPtr func, void *arg);
-    OrderManager * orderManager;
+    ThreadStateController * orderManager;
     // Allocate a stack for thread.
     // Used internally by Fork()
 
