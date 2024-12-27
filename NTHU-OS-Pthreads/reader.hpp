@@ -48,9 +48,10 @@ void* Reader::process(void* arg) {
 	while (reader->expected_lines--) {
 		Item *item = new Item;
 		reader->ifs >> *item;
+		// std::cout << *item << std::endl; // for debugging (looks good)
+		item->enqueue_time = std::chrono::high_resolution_clock::now();
 		reader->input_queue->enqueue(item);
 	}
-
 	return nullptr;
 }
 

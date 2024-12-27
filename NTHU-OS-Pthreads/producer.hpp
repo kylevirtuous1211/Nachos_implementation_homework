@@ -33,11 +33,25 @@ Producer::Producer(TSQueue<Item*>* input_queue, TSQueue<Item*>* worker_queue, Tr
 Producer::~Producer() {}
 
 void Producer::start() {
-	// TODO: starts a Producer thread
+	pthread_create(&t, NULL, process, this);
 }
 
 void* Producer::process(void* arg) {
-	// TODO: implements the Producer's work
+    Producer* producer = static_cast<Producer*>(arg);
+    while (true) {
+        // Blocking dequeue call
+        Item* rawItem = producer->input_queue->dequeue();
+    
+        // Transform the item
+        auto val = producer->transformer->producer_transform(rawItem->opcode, rawItem->val);
+        // std::cout << val << std::endl; // for debugging (looks good)
+        // Enqueue the transformed item
+        producer->worker_queue->enqueue(new Item(rawItem->key, val, rawItem->opcode));
+        
+        // Clean up the raw item
+        delete rawItem;
+    }
+    return nullptr;
 }
 
 #endif // PRODUCER_HPP

@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>report.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h2 id="functions-implementation">Functions Implementation</h2>
+<h3 id="main-function">main function</h3>
+<p>I finished classes (<code>Reader</code>, <code>Producer</code>, <code>ConsumerController</code>, and <code>Writer</code>) that derives from class <code>thread</code></p>
+<p>Dynamically allocate three thread safe queue from <code>TSQueue</code> class</p>
+<pre class="hljs"><code><div>	TSQueue&lt;Item*&gt;* input_queue = new TSQueue&lt;Item*&gt;(READER_QUEUE_SIZE);
+	TSQueue&lt;Item*&gt;* worker_queue = new TSQueue&lt;Item*&gt;(WORKER_QUEUE_SIZE);
+	TSQueue&lt;Item*&gt;* output_queue = new TSQueue&lt;Item*&gt;(WRITER_QUEUE_SIZE);
+</div></code></pre>
+<h4 id="initialize-program-based-on-the-spec">Initialize program based on the spec</h4>
+<p>Create a reader thread that reads from input file, every time it reads <code>expected lines</code> from the file</p>
+<pre class="hljs"><code><div>Reader* reader = new Reader(expected_lines, input_file_name, input_queue);
+reader-&gt;start();
+</div></code></pre>
+<p>Dynamically allocate a transform thread that does transformation based on <code>Item</code>'s <code>opcode</code> and <code>val</code></p>
+<pre class="hljs"><code><div>Transformer* transformer = new Transformer();
+</div></code></pre>
+<p>Dynamic allocate and start 4 producer threads, which will do the transforming and add the result to <code>worker queue</code></p>
+<pre class="hljs"><code><div>std::vector&lt;Producer*&gt; producers;
+
+	for (int i = 0; i &lt; 4; i++) {
+		Producer* producer = new Producer(input_queue, worker_queue, transformer);
+		producer-&gt;start();
+		producers.push_back(producer);
+	}
+</div></code></pre>
+<p>Dynamically allocate a <code>Consumer_controller</code> thread which controls how many <code>consumer threads</code> there will be based on <code>CONSUMER_CONTROLLER_LOW_THRESHOLD_PERCENTAGE</code> and <code>CONSUMER_CONTROLLER_HIGH_THRESHOLD_PERCENTAGE</code></p>
+<pre class="hljs"><code><div>	ConsumerController* consumer_controller = new ConsumerController(
+		worker_queue,
+		output_queue,
+		transformer,
+		CONSUMER_CONTROLLER_CHECK_PERIOD,
+		WORKER_QUEUE_SIZE * CONSUMER_CONTROLLER_LOW_THRESHOLD_PERCENTAGE / 100,
+		WORKER_QUEUE_SIZE * CONSUMER_CONTROLLER_HIGH_THRESHOLD_PERCENTAGE / 100
+	);
+	consumer_controller-&gt;start();
+</div></code></pre>
+<p><strong>Synchronize</strong> thread by waiting here until it finishes its job</p>
+<pre class="hljs"><code><div>	reader-&gt;join(); // wait for reader thread to complete
+	// cout &lt;&lt; &quot;reader thread complete&quot; &lt;&lt; endl;
+	writer-&gt;join(); // wait for writer thread to complete
+</div></code></pre>
+<p>Releases dynamically allocated content to avoid memory leak</p>
+<pre class="hljs"><code><div>	// delete threads
+	delete reader;
+	delete writer;
+	delete consumer_controller;
+	delete transformer;	
+	for (auto&amp; producer : producers) {
+		delete producer;
+	}
+	// delete queues
+	delete input_queue;
+	delete worker_queue;
+	delete output_queue;
+</div></code></pre>
+<p>Now, I'll explain the data structure <code>TSQueue</code> and each thread class implementaion.</p>
+<p><strong>解釋一下會用到的pthread函式:</strong></p>
+<p><code>pthread_mutex_lock(&amp;mutex);</code>
+這個蠻obvious就是獲得mutex lock，讓一次只能一個thread進到critical section</p>
+<p><code>pthread_cond_wait(&amp;cond_enqueue, &amp;mutex);</code>
+這個會atomically release mutex, 才不會這邊在等，別的thread也進不來critical condition</p>
+<p><code>pthread_cond_signal(&amp;cond_dequeue); </code>
+這個signal conditional variable, 跟在等待(waiting)的thread</p>
+<p><code>pthread_create(&amp;t, NULL, process, this);</code>
+&amp;t: pointer to pthread_t 物件，ID會被存在 pthread_t 裡面，然後 create 之後會去做 process函式，this 是會被傳到函式的參數</p>
+<p><code>pthread_setcanceltype(type, nullptr):</code>
+type:</p>
+<ul>
+<li>PTHREAD_CANCEL_DEFERRED: 確保thread只會回應一些特定的cancellation request (像是 pthread_cond_wait, pthread_testcancel)</li>
+<li>PTHREAD_CANCEL_ENABLE: 讓 thread 可以回應 cancellation request</li>
+<li>PTHREAD_CANCEL_DISABLE: 避免 thread 回應 cancellation request</li>
+</ul>
+<p><code>pthread_join(t, 0);</code>
+Synchronize thread 等這個thread t完成工作，等在這邊直到完成</p>
+<p><code>pthread_cancel(t);</code>
+Used to terminate a thread: request cancellation of the specified thread</p>
+<ul>
+<li>Return 0: success</li>
+</ul>
+<h3 id="tsqueuehpp">TS_QUEUE.hpp</h3>
+<p>TS_QUEUE 是thread safe queue的簡稱，其實就是一個用pthread mutex實作的queue，支援enqueue(), dequeue(), size()這一些基本的member function. 資料結構選擇用array來做circular queue。</p>
+<p><code>TSQueue&lt;T&gt;::TSQueue(int buffer_size) : buffer_size(buffer_size)</code></p>
+<ul>
+<li>We initialized the head, tail, size for the queue. Also, we initialize mutex lock and 2 conditional variables called <code>cond_enqueue</code> and <code>cond_dequeue</code>.</li>
+<li>By the way, the conditional variables is to prevent busy waiting of CPU.</li>
+</ul>
+<pre class="hljs"><code><div>template &lt;class T&gt;
+TSQueue&lt;T&gt;::TSQueue(int buffer_size) : buffer_size(buffer_size) {
+	// TD: implements TSQueue constructor
+	buffer = new T[buffer_size];
+	size = 0;
+	head = buffer_size - 1;
+	tail = 0;
+	// initialize pthread mutex lock
+	pthread_mutex_init(&amp;mutex, NULL);
+	// initialize pthread conditional variable
+	pthread_cond_init(&amp;cond_enqueue, NULL);
+	pthread_cond_init(&amp;cond_dequeue, NULL);	
+}
+</div></code></pre>
+<p><code>TSQueue&lt;T&gt;::~TSQueue() </code></p>
+<ul>
+<li>Destructor: release memory for conditional variables and mutex lock.</li>
+</ul>
+<pre class="hljs"><code><div>template &lt;class T&gt;
+TSQueue&lt;T&gt;::~TSQueue() {
+	// TD: implenents TSQueue destructor
+	delete [] buffer;
+	pthread_cond_destroy(&amp;cond_dequeue);
+	pthread_cond_destroy(&amp;cond_enqueue);
+	pthread_mutex_destroy(&amp;mutex);
+}
+</div></code></pre>
+<p><code>void TSQueue&lt;T&gt;::enqueue(T item)</code></p>
+<ul>
+<li>The enqueue function: adds a <code>Item*</code> at the <code>tail</code> of our circular queue</li>
+<li>To prevent race condition, we use <code>pthread_mutex_lock</code> and <code>pthread_mutex_unlock</code> to implement a critical section.</li>
+<li>To prevent CPU being blocked inside the while loop, use <code>pthread_cond_wait</code> to set the thread to sleeping state and release mutex lock.</li>
+</ul>
+<pre class="hljs"><code><div>template &lt;class T&gt;
+void TSQueue&lt;T&gt;::enqueue(T item) {
+	// TD: enqueues an element to the end of the queue
+	pthread_mutex_lock(&amp;mutex);
+	// queue is full =&gt; blocked 
+	while (size == buffer_size) {
+		pthread_cond_wait(&amp;cond_enqueue, &amp;mutex);
+	}
+	// has space to enqueue, enqueue from tail
+	buffer[tail] = item;
+	tail = (tail + 1) % buffer_size;
+	size++;
+	pthread_cond_signal(&amp;cond_dequeue);	
+	pthread_mutex_unlock(&amp;mutex);
+}
+</div></code></pre>
+<p><code>T TSQueue&lt;T&gt;::dequeue()</code></p>
+<ul>
+<li>The dequeue function: pops a <code>Item*</code> at the <code>head</code>+1 of our circular queue</li>
+<li>To prevent race condition, we use <code>pthread_mutex_lock</code> and <code>pthread_mutex_unlock</code> to implement a critical section.</li>
+<li>To prevent CPU being blocked inside the while loop, use <code>pthread_cond_wait</code> to set the thread to sleeping state and release mutex lock.</li>
+</ul>
+<pre class="hljs"><code><div>template &lt;class T&gt;
+T TSQueue&lt;T&gt;::dequeue() {
+	pthread_mutex_lock(&amp;mutex);
+	// queue is full =&gt; blocked 
+	while (size == 0) {
+		pthread_cond_wait(&amp;cond_dequeue, &amp;mutex);
+	}
+	// has item at head, dequeue from head
+	head = (head + 1) % buffer_size;
+	T item = buffer[head];
+	size--;
+	pthread_cond_signal(&amp;cond_enqueue);
+	pthread_mutex_unlock(&amp;mutex);
+	return item;
+}
+</div></code></pre>
+<p><code>int TSQueue&lt;T&gt;::get_size()</code></p>
+<ul>
+<li>Returns the size of the queue</li>
+</ul>
+<pre class="hljs"><code><div>template &lt;class T&gt;
+int TSQueue&lt;T&gt;::get_size() {
+	// TD: returns the size of the queue
+	return size;
+}
+</div></code></pre>
+<h3 id="readerhpp">reader.hpp</h3>
+<p>goal: Reads from the input file line by line and enqueues to the <code>input queue</code></p>
+<p><code>void Reader::start()</code></p>
+<ul>
+<li>Use pthread_create() to run <code>Reader::process</code> using the current thread</li>
+</ul>
+<pre class="hljs"><code><div>void Reader::start() {
+	pthread_create(&amp;t, 0, Reader::process, (void*)this);
+}
+</div></code></pre>
+<p><code>void* Reader::process(void* arg)</code></p>
+<ul>
+<li>Keeps reading from the filestream from the inputfile. Until it reads total of <code>expected_lines</code> then stop.</li>
+</ul>
+<pre class="hljs"><code><div>void* Reader::process(void* arg) {
+	Reader* reader = (Reader*)arg;
+
+	while (reader-&gt;expected_lines--) {
+		Item *item = new Item;
+		reader-&gt;ifs &gt;&gt; *item;
+		// std::cout &lt;&lt; *item &lt;&lt; std::endl; // for debugging (looks good)
+		reader-&gt;input_queue-&gt;enqueue(item);
+	}
+	return nullptr;
+}
+</div></code></pre>
+<h3 id="producerhpp">producer.hpp</h3>
+<p>goal: Infinitely deques the data from <code>input_queue</code> using <code>producer_transform</code> then write to the produced data to <code>worker_queue</code></p>
+<ul>
+<li>Use pthread_create() to run <code>Producer::process</code> using the current thread</li>
+</ul>
+<pre class="hljs"><code><div>void Producer::start() {
+	pthread_create(&amp;t, NULL, process, this);
+}
+</div></code></pre>
+<p><code>Producer::process(void* arg)</code></p>
+<ul>
+<li>The producer does the first transform <code>producer_transform</code> via <code>transformer*</code> thread, then appends to the worker queue.</li>
+</ul>
+<pre class="hljs"><code><div>void* Producer::process(void* arg) {
+    Producer* producer = static_cast&lt;Producer*&gt;(arg);
+    while (true) {
+        // Blocking dequeue call
+        Item* rawItem = producer-&gt;input_queue-&gt;dequeue();
+    
+        // Transform the item
+        auto val = producer-&gt;transformer-&gt;producer_transform(rawItem-&gt;opcode, rawItem-&gt;val);
+        // std::cout &lt;&lt; val &lt;&lt; std::endl; // for debugging (looks good)
+        // Enqueue the transformed item
+        producer-&gt;worker_queue-&gt;enqueue(new Item(rawItem-&gt;key, val, rawItem-&gt;opcode));
+        
+        // Clean up the raw item
+        delete rawItem;
+    }
+    return nullptr;
+}
+</div></code></pre>
+<h3 id="consumerhpp">consumer.hpp</h3>
+<p>goal: does transform on the data in <code>worker queue</code> and enqueues to the <code>output queue</code>
+<code>Consumer::start()</code></p>
+<ul>
+<li>The functionality is same as previous</li>
+</ul>
+<pre class="hljs"><code><div>void Consumer::start() {
+	pthread_create(&amp;t, nullptr, process, this);
+}
+</div></code></pre>
+<ul>
+<li>Thread cancellation details:
+<strong>1. Why Cancel a Thread?</strong>
+Thread cancellation is essential in multithreaded applications for several reasons:</li>
+</ul>
+<ul>
+<li>
+<p><strong>Graceful Shutdown:</strong> When your application needs to terminate (e.g., user intervention, completion of tasks), it's crucial to stop all running threads to ensure a clean exit.</p>
+</li>
+<li>
+<p><strong>Resource Management:</strong> Threads consume system resources (CPU, memory). Canceling unnecessary threads helps in freeing these resources, preventing potential memory leaks or resource exhaustion.</p>
+</li>
+<li>
+<p><strong>Synchronization and Coordination:</strong> In scenarios where threads are interdependent, canceling one thread might be necessary to maintain the integrity of the overall workflow or to prevent deadlocks.</p>
+</li>
+<li>
+<p><strong>Error Handling:</strong> If a thread encounters a critical error or exception from which it cannot recover, canceling it can prevent the application from entering an unstable state.</p>
+</li>
+</ul>
+<h3 id="2-what-happens-when-a-thread-is-canceled"><strong>2. What Happens When a Thread Is Canceled?</strong></h3>
+<p>When you invoke <code>pthread_cancel(t)</code> on a thread <code>t</code>, several things occur based on how the thread is configured to handle cancellation:</p>
+<p><strong>a. Cancellation Types</strong></p>
+<p>Pthreads support two primary cancellation types:</p>
+<ol>
+<li>
+<p><strong>Asynchronous Cancellation (<code>PTHREAD_CANCEL_ASYNCHRONOUS</code>):</strong></p>
+<ul>
+<li><strong>Behavior:</strong> The thread is terminated immediately when <code>pthread_cancel</code> is called.</li>
+<li><strong>Pros:</strong> Quick termination.</li>
+<li><strong>Cons:</strong> Unsafe as it can interrupt the thread while it's holding locks or in the middle of critical operations, potentially leading to inconsistent program states or deadlocks.</li>
+</ul>
+</li>
+<li>
+<p><strong>Deferred Cancellation (<code>PTHREAD_CANCEL_DEFERRED</code>):</strong></p>
+<ul>
+<li><strong>Behavior:</strong> The thread checks for cancellation requests at specific cancellation points (e.g., <code>pthread_cond_wait</code>, <code>pthread_mutex_lock</code>, <code>read</code>, <code>write</code>).</li>
+<li><strong>Pros:</strong> Safer as it allows the thread to reach a safe state before termination.</li>
+<li><strong>Cons:</strong> The thread might continue running until it reaches the next cancellation point, leading to delayed termination.</li>
+</ul>
+<p><strong>Default Type:</strong> Most threads default to <strong>deferred cancellation</strong>.</p>
+</li>
+</ol>
+<p><strong>b. Cancellation State</strong></p>
+<p>Threads can have their cancellation state enabled or disabled:</p>
+<ul>
+<li>
+<p><strong>Enabled (<code>PTHREAD_CANCEL_ENABLE</code>):</strong> The thread can be canceled.</p>
+</li>
+<li>
+<p><strong>Disabled (<code>PTHREAD_CANCEL_DISABLE</code>):</strong> The thread ignores cancellation requests.</p>
+<p><strong>Default State:</strong> <strong>Enabled</strong>.</p>
+</li>
+</ul>
+<p><strong>c. Execution Flow Upon Cancellation</strong></p>
+<ol>
+<li><strong>Cancellation Request:</strong> <code>pthread_cancel(t)</code> sends a cancellation request to thread <code>t</code>.</li>
+<li><strong>Handling the Request:</strong>
+<ul>
+<li><strong>If Asynchronous:</strong> The thread is terminated immediately.</li>
+<li><strong>If Deferred:</strong> The thread proceeds until it reaches the next cancellation point.</li>
+</ul>
+</li>
+<li><strong>Cleanup Handlers:</strong> Before termination, any cleanup handlers registered using <code>pthread_cleanup_push</code> are executed to release resources, unlock mutexes, etc.</li>
+<li><strong>Thread Termination:</strong> The thread exits, and its resources are reclaimed by the system.</li>
+</ol>
+<pre class="hljs"><code><div>int Consumer::cancel() {
+	// TD: cancels the consumer thread
+	is_cancel = true;
+	return pthread_cancel(t);
+}
+</div></code></pre>
+<p><code>Consumer::process(void* arg)</code></p>
+<ul>
+<li>Transform <code>Item*</code> using <code>transformer-&gt;consumer_transform(item-&gt;opcode, item-&gt;val)</code></li>
+<li><code>pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, nullptr);</code>: This line ensures the cancellation is at the next cancellation point. It's considered safer than Asynchronous cancellation</li>
+<li><code>pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, nullptr);</code>: Temporarily disables cancel, in this way, threads won't terminate in the middle of transformation</li>
+</ul>
+<pre class="hljs"><code><div>void* Consumer::process(void* arg) {
+	Consumer* consumer = (Consumer*)arg;
+
+	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, nullptr);
+
+	while (!consumer-&gt;is_cancel) {
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, nullptr);
+
+		Item* item = consumer-&gt;worker_queue-&gt;dequeue();
+
+		unsigned long long val = consumer-&gt;transformer-&gt;consumer_transform(item-&gt;opcode, item-&gt;val);
+		// std::cout &lt;&lt; val &lt;&lt; std::endl; // for debugging (looks good)
+		consumer-&gt;output_queue-&gt;enqueue(new Item(item-&gt;key, val, item-&gt;opcode));
+		delete item;
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
+	}
+	return nullptr;
+</div></code></pre>
+<h3 id="consumercontroller">Consumer_controller</h3>
+<p>goal: increase or decrease the number of consumer threads by 1 based on <code>worker_queue</code> size
+<code>ConsumerController::start()</code>
+starts the thread and runs the process</p>
+<pre class="hljs"><code><div>void ConsumerController::start() {
+	// TODO: starts a ConsumerController thread
+	pthread_create(&amp;t, NULL, process, this);
+}
+</div></code></pre>
+<p><code>void* ConsumerController::process(void* arg)</code></p>
+<ul>
+<li>determines scale up or scale down based on <code>int current_size = controller-&gt;worker_queue-&gt;get_size();</code></li>
+<li>in the infinite while loop, <code>usleep(controller-&gt;check_period);</code> enables controller to do periodic monitoring on the <code>worker_queue</code></li>
+<li>adds all the thread inside a vector for efficient deletion.</li>
+</ul>
+<pre class="hljs"><code><div>
+void* ConsumerController::process(void* arg) {
+    ConsumerController* controller = static_cast&lt;ConsumerController*&gt;(arg);
+
+    while (true) {
+        // Sleep for the specified check period
+        usleep(controller-&gt;check_period);
+
+        // Get the current size of the worker queue
+        int current_size = controller-&gt;worker_queue-&gt;get_size();
+
+        // Scale up: Add a new Consumer if queue size exceeds high_threshold
+        if (current_size &gt; controller-&gt;high_threshold) {
+            Consumer* new_consumer = new Consumer(controller-&gt;worker_queue, controller-&gt;writer_queue, controller-&gt;transformer);
+            controller-&gt;consumers.push_back(new_consumer);
+            new_consumer-&gt;start();
+            std::cout &lt;&lt; &quot;Added a new Consumer. Total Consumers from &quot; &lt;&lt; controller-&gt;consumers.size()-1 &lt;&lt; &quot; to &quot; &lt;&lt; controller-&gt;consumers.size() &lt;&lt; std::endl;
+        }
+        // Scale down: Remove the last Consumer if queue size is below low_threshold
+        else if (current_size &lt; controller-&gt;low_threshold &amp;&amp; controller-&gt;consumers.size() &gt; 1) {
+            Consumer* consumer_to_remove = controller-&gt;consumers.back();
+            consumer_to_remove-&gt;cancel();
+            controller-&gt;consumers.pop_back();
+            delete consumer_to_remove;
+            std::cout &lt;&lt; &quot;Removed a Consumer. Total Consumers from&quot; &lt;&lt; controller-&gt;consumers.size()+1 &lt;&lt; &quot; to &quot; &lt;&lt; controller-&gt;consumers.size() &lt;&lt; std::endl;
+        }
+    }
+    return nullptr;
+}
+</div></code></pre>
+<h3 id="writerhpp"><code>Writer.hpp</code></h3>
+<p>goal: Writes from output queue to output file.
+starts the thread and runs <code>writer::process(void* arg)</code>.</p>
+<pre class="hljs"><code><div>void Writer::start() {
+	// TD: starts a Writer thread
+	// create and starts a new pthread and runs process function
+	int ret = pthread_create(&amp;t, NULL, process, this);
+	if (ret != 0) {
+		std::cerr &lt;&lt; &quot;pthread_create failed: &quot; &lt;&lt; ret &lt;&lt; std::endl;
+	}
+}
+</div></code></pre>
+<p><code>void* Writer::process(void* arg)</code>
+Keep writing from <code>output_queue</code> to output file using the provides output stream.</p>
+<ul>
+<li>decrease <code>expected_lines</code> when write a line. The thread ends when every line has been written.</li>
+</ul>
+<pre class="hljs"><code><div>void* Writer::process(void* arg) {
+	// TD: implements the Writer's work
+	// change the pointer to writer's pointer
+	Writer* writer = static_cast&lt;Writer*&gt;(arg);
+	if (!writer-&gt;output_queue || !writer-&gt;ofs.is_open()) {
+		std::cerr &lt;&lt; &quot;output_queue or output file not open&quot; &lt;&lt; std::endl;
+		return NULL;
+	}
+	// decrease expected lines and write to file
+	while (writer -&gt; expected_lines &gt; 0) {
+		Item* item = writer-&gt;output_queue-&gt;dequeue();
+		// std::cout &lt;&lt; *item &lt;&lt; std::endl;
+		if (writer-&gt;ofs.fail()) {
+            std::cerr &lt;&lt; &quot;Failed to write item to file.&quot; &lt;&lt; std::endl;
+            break;
+        }
+		writer-&gt;ofs &lt;&lt; *item;
+		--writer-&gt;expected_lines;
+		// writer-&gt;ofs.flush();
+	}
+	return NULL;
+}
+</div></code></pre>
+<p><img src="file:///home/os2024/os24team62/NTHU-OS-Pthreads/image.png" alt="alt text"></p>
+<h2 id="experiments">Experiments</h2>
+<h2 id="difficulties">difficulties</h2>
+<p>I think this pthread is way more easy than NachOS homework because I don't have to go through large code base and know the complicated relationships between the functions. If there is a TA session that teaches us pthread functions and how to monitor thread using other packages would be extra helpful!</p>
+<h2 id="reflection">Reflection</h2>
+<p>This final project is fun and gives me an experience of implementing the classic producer consumer problem. Also, it's also great experience learning how to use pthread module gives me more sense of multithread programming! Furthermore, the experiment part is also beneficial, allowing me to do more</p>
+<pre class="hljs"><code><div></div></code></pre>
+
+</body>
+</html>

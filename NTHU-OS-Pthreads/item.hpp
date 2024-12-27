@@ -2,6 +2,7 @@
 
 #ifndef ITEM_HPP
 #define ITEM_HPP
+#include <chrono>
 
 class Item {
 public:
@@ -15,6 +16,7 @@ public:
 	int key;
 	unsigned long long val;
 	char opcode;
+	std::chrono::high_resolution_clock::time_point enqueue_time;
 };
 
 // Implementation start
@@ -22,7 +24,7 @@ public:
 Item::Item() {}
 
 Item::Item(int key, unsigned long long val, char opcode) :
-	key(key), val(val), opcode(opcode) {
+	key(key), val(val), opcode(opcode), enqueue_time(std::chrono::high_resolution_clock::now()) {
 }
 
 Item::~Item() {}

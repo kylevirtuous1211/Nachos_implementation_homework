@@ -68,10 +68,36 @@ ConsumerController::~ConsumerController() {}
 
 void ConsumerController::start() {
 	// TODO: starts a ConsumerController thread
+	pthread_create(&t, NULL, process, this);
 }
 
 void* ConsumerController::process(void* arg) {
-	// TODO: implements the ConsumerController's work
+    ConsumerController* controller = static_cast<ConsumerController*>(arg);
+
+    while (true) {
+        // Sleep for the specified check period
+        usleep(controller->check_period);
+
+        // Get the current size of the worker queue
+        int current_size = controller->worker_queue->get_size();
+
+        // Scale up: Add a new Consumer if queue size exceeds high_threshold
+        if (current_size > controller->high_threshold) {
+            Consumer* new_consumer = new Consumer(controller->worker_queue, controller->writer_queue, controller->transformer);
+            controller->consumers.push_back(new_consumer);
+            new_consumer->start();
+            std::cout << "Added a new Consumer. Total Consumers from " << controller->consumers.size()-1 << " to " << controller->consumers.size() << std::endl;
+        }
+        // Scale down: Remove the last Consumer if queue size is below low_threshold
+        else if (current_size < controller->low_threshold && controller->consumers.size() > 1) {
+            Consumer* consumer_to_remove = controller->consumers.back();
+            consumer_to_remove->cancel();
+            controller->consumers.pop_back();
+            delete consumer_to_remove;
+            std::cout << "Removed a Consumer. Total Consumers from" << controller->consumers.size()+1 << " to " << controller->consumers.size() << std::endl;
+        }
+    }
+    return nullptr;
 }
 
 #endif // CONSUMER_CONTROLLER_HPP
