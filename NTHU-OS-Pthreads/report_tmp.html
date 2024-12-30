@@ -782,11 +782,202 @@ Keep writing from <code>output_queue</code> to output file using the provides ou
 </div></code></pre>
 <p><img src="file:///home/os2024/os24team62/NTHU-OS-Pthreads/image.png" alt="alt text"></p>
 <h2 id="experiments">Experiments</h2>
+<p>I tested the program 4 different specs <code>average latency</code> <code>min latency</code> <code>max latency</code> and <code>total execution time</code> on <strong>test01</strong>. Latency is calculated from an Item gets input into <code>input_queue</code> to output from <code>output_queue</code></p>
+<p>After a few tests, I observed there is random sporadically high <code>max latency</code> in my tests. For instance, <code>average latency</code> remains around 30µs but spikes would reach up to 2000+ µs. Factors such as uneven thread workload, context switch, waiting for the mutex lock would increase latency. Therefore, I'm just going to focus on throughput and average latency.</p>
+<h3 id="different-values-of-consumer-controller-check-period">Different values of consumer controller check period</h3>
+<p>Did 3~5 tests and average the results</p>
+<table>
+<thead>
+<tr>
+<th>check period (µs)</th>
+<th>average latency (ms)</th>
+<th>total execution time (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1000000</td>
+<td>30</td>
+<td>59774</td>
+</tr>
+<tr>
+<td><strong>100000</strong></td>
+<td>33</td>
+<td>51478</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>30.33</td>
+<td>53894.3</td>
+</tr>
+</tbody>
+</table>
+<h4 id="discussion-and-conclusion">Discussion and conclusion:</h4>
+<ol>
+<li>the average latency doesn't have significant relationship with total execution time. 100000µs has the shortest execution time but has the highest average latency for each Item.</li>
+<li>The check period of 100000µs is the optimum point in the experiment. When period is high, it's not responsice. On the other hand, if period is too low, checking also leads to overhead.</li>
+</ol>
+<p>From now on I'll choose 100000µs as my <strong>control group</strong></p>
+<h3 id="different-values-of-lowhigh-threshold">Different values of low/high threshold</h3>
+<p>Did 3~5 tests and average the results</p>
+<table>
+<thead>
+<tr>
+<th>low/high (%)</th>
+<th>average latency (ms)</th>
+<th>total execution time (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>20/80 (control)</td>
+<td>33</td>
+<td>51478</td>
+</tr>
+<tr>
+<td>20/90</td>
+<td>33.33</td>
+<td>53881.67</td>
+</tr>
+<tr>
+<td><strong>20/70</strong></td>
+<td>30</td>
+<td>51245.67</td>
+</tr>
+<tr>
+<td>20/60</td>
+<td>36.33</td>
+<td>51644</td>
+</tr>
+<tr>
+<td>10/80</td>
+<td>32.33</td>
+<td>53877</td>
+</tr>
+<tr>
+<td>30/80</td>
+<td>31.33</td>
+<td>54758</td>
+</tr>
+<tr>
+<td>30/70</td>
+<td>33.33</td>
+<td>51302</td>
+</tr>
+</tbody>
+</table>
+<h4 id="discussion-and-conclusion">Discussion and conclusion:</h4>
+<ol>
+<li>Raising the high threshold increases the execution time as expected due to less responsiveness; and lower high threshold decrease very slightly my guess is because the controller increase consumer faster.</li>
+<li>However, when I either increase/decrease the low threshold the execution time increases.</li>
+<li>In my tests, 20/70 has the best execution time</li>
+</ol>
+<h3 id="different-worker-queue-size">Different worker queue size</h3>
+<p>Did 3~5 tests and average the results</p>
+<table>
+<thead>
+<tr>
+<th>worker queue size</th>
+<th>average latency (ms)</th>
+<th>total execution time (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200 (control)</td>
+<td>33</td>
+<td>51478</td>
+</tr>
+<tr>
+<td>10</td>
+<td>73</td>
+<td>51792.33</td>
+</tr>
+<tr>
+<td><strong>100</strong></td>
+<td>37</td>
+<td>51424</td>
+</tr>
+<tr>
+<td>500</td>
+<td>41.66</td>
+<td>59112</td>
+</tr>
+<tr>
+<td>2000</td>
+<td>35</td>
+<td>130869</td>
+</tr>
+</tbody>
+</table>
+<h4 id="discussion-and-conclusion">Discussion and conclusion</h4>
+<ul>
+<li>When worker queue is small, especially size = 10, the consumer number keeps fluctuating. I assume it <em>produce overhead of adding and deleting threads</em></li>
+<li>When worker queue is large, especially size = 2000. Due to multiple enqueue() dequeue() <em>waiting for the mutex lock</em> the execution time becomes very significant</li>
+</ul>
+<h3 id="very-small-writer-queue-size">Very small writer queue size</h3>
+<p>Did 3~5 tests and average the results</p>
+<table>
+<thead>
+<tr>
+<th>writer queue size</th>
+<th>average latency (ms)</th>
+<th>total execution time (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4000</td>
+<td>33</td>
+<td>51478</td>
+</tr>
+<tr>
+<td>400</td>
+<td>32</td>
+<td>55313</td>
+</tr>
+<tr>
+<td>40</td>
+<td>34</td>
+<td>51631</td>
+</tr>
+</tbody>
+</table>
+<h4 id="discussion-and-conclusion">Discussion and conclusion</h4>
+<ul>
+<li>The <em>writer queue is not a bottleneck</em>, it writes item to output file faster than consumer enqueue's speed. Also a smaller writer queue consumes less memory lead to better <em>cache locality</em>.</li>
+</ul>
+<h3 id="very-small-reader-queue-size">Very small reader queue size</h3>
+<p>Did 3~5 tests and average the results</p>
+<table>
+<thead>
+<tr>
+<th>reader queue size</th>
+<th>average latency (ms)</th>
+<th>total execution time (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200</td>
+<td>33</td>
+<td>51478</td>
+</tr>
+<tr>
+<td>20</td>
+<td>32.33</td>
+<td>52753</td>
+</tr>
+</tbody>
+</table>
+<h4 id="discussion-and-conclusion">Discussion and conclusion</h4>
+<ul>
+<li>The <em>reader queue is not a bottleneck</em>, it reader item to output file faster than producer dequeue's speed.</li>
+</ul>
 <h2 id="difficulties">difficulties</h2>
-<p>I think this pthread is way more easy than NachOS homework because I don't have to go through large code base and know the complicated relationships between the functions. If there is a TA session that teaches us pthread functions and how to monitor thread using other packages would be extra helpful!</p>
+<p>I think this pthread is more easy than NachOS homework because I don't have to go through large code base and know the complicated relationships between the functions. If there is a TA session that teaches us pthread functions and how to monitor thread using other packages would be extra helpful!</p>
 <h2 id="reflection">Reflection</h2>
 <p>This final project is fun and gives me an experience of implementing the classic producer consumer problem. Also, it's also great experience learning how to use pthread module gives me more sense of multithread programming! Furthermore, the experiment part is also beneficial, allowing me to do more</p>
-<pre class="hljs"><code><div></div></code></pre>
 
 </body>
 </html>
